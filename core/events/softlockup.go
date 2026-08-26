@@ -16,6 +16,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -35,8 +36,8 @@ import (
 
 // TracerData is the full data structure.
 type SoftLockupTracerData struct {
-	CPU       int32  `json:"cpu"`
-	Pid       int32  `json:"pid"`
+	CPU       uint32 `json:"cpu"`
+	PID       uint32 `json:"pid"`
 	Comm      string `json:"comm"`
 	CPUsStack string `json:"cpus_stack"`
 }
@@ -99,6 +100,10 @@ func (c *softLockupTracing) Start(ctx context.Context) error {
 		default:
 			var data abi.SoftlockupEvent
 			if err := reader.ReadInto(&data); err != nil {
+				if errors.Is(err, bpf.ErrPerfEventSamplesLost) {
+					log.WithError(err).Warn("lost BPF perf event samples")
+					continue
+				}
 				return fmt.Errorf("ReadFromPerfEvent fail: %w", err)
 			}
 
@@ -120,8 +125,8 @@ func (c *softLockupTracing) Start(ctx context.Context) error {
 				TracerName: "softlockup",
 				TracerTime: time.Now(),
 				TracerData: &SoftLockupTracerData{
-					CPU:       int32(data.CPU),
-					Pid:       int32(data.PID),
+					CPU:       data.CPU,
+					PID:       data.TGID,
 					Comm:      bytesutil.ToStr(data.Comm[:]),
 					CPUsStack: bt,
 				},

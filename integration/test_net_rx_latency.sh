@@ -25,35 +25,23 @@ set -euo pipefail
 
 source "${ROOT_DIR}/integration/lib.sh"
 source "${ROOT_DIR}/integration/config.sh"
+source "${ROOT_DIR}/integration/lib_namespace.sh"
 
 [[ $EUID -eq 0 ]] || skip "requires root"
 
-VETH_HOST="veth-rxlat-h"
-VETH_PEER="veth-rxlat-p"
-NETNS="net-rxlat-${BASHPID}"
-VETH_HOST_IP="10.200.1.1"
-VETH_PEER_IP="10.200.1.2"
+SERVER_IP="10.200.1.2"
+CLIENT_IP="10.200.1.1"
 TEST_PORT=19876
 
 _server_pid=""
 WORK_DIR=$(mktemp -d "${HUATUO_BAMAI_TEST_TMPDIR}/net-rx-latency.XXXXXX")
 cleanup_all() {
 	[[ -n "${_server_pid}" ]] && stop_by_pid "${_server_pid}" 2 || true
-	ip link del "${VETH_HOST}" 2> /dev/null || true
-	ip netns del "${NETNS}" 2> /dev/null || true
+	tcp_namespace_cleanup
 }
 trap cleanup_all EXIT
 
-# Isolate the peer so its address cannot resolve through the host local table.
-ip netns add "${NETNS}" 2> /dev/null || skip "network namespace creation failed: ${NETNS}"
-ip link add "${VETH_HOST}" type veth peer name "${VETH_PEER}" 2> /dev/null || skip "veth creation failed"
-
-ip link set "${VETH_PEER}" netns "${NETNS}"
-ip addr add "${VETH_HOST_IP}/24" dev "${VETH_HOST}"
-ip link set "${VETH_HOST}" up
-ip -n "${NETNS}" addr add "${VETH_PEER_IP}/24" dev "${VETH_PEER}"
-ip -n "${NETNS}" link set "${VETH_PEER}" up
-ip -n "${NETNS}" link set lo up
+tcp_namespace_setup rxlat "${SERVER_IP}" "${CLIENT_IP}"
 sleep 0.5
 
 integration_huatuo_bamai_start \
@@ -67,17 +55,16 @@ compile_user_fixture \
 	"${ROOT_DIR}/integration/testdata/test_net_rx_latency_user.c" \
 	"${SLOW_TCP_SERVER}"
 
-ip netns exec "${NETNS}" "${SLOW_TCP_SERVER}" \
+ip netns exec "${TCP_NS_SERVER}" "${SLOW_TCP_SERVER}" \
 	> "${WORK_DIR}/testserver.log" 2>&1 &
 server_pid=$!
 _server_pid="${server_pid}"
 sleep 0.5
 
 for i in $(seq 1 5); do
-	log_info "curl request #${i} to ${VETH_PEER_IP}:${TEST_PORT}"
-	curl -s --connect-timeout 1 --max-time 2 \
-		--interface "${VETH_HOST_IP}" \
-		http://${VETH_PEER_IP}:${TEST_PORT}/ \
+	log_info "curl request #${i} to ${TCP_NS_SERVER_ADDR}:${TEST_PORT}"
+	ip netns exec "${TCP_NS_CLIENT}" curl -s --connect-timeout 1 --max-time 2 \
+		http://${TCP_NS_SERVER_ADDR}:${TEST_PORT}/ \
 		>> "${WORK_DIR}/curl.log" 2>&1 || true
 done
 
@@ -87,18 +74,31 @@ EVENTS_FILE="${HUATUO_BAMAI_TEST_TMPDIR}/events/net_rx_latency"
 [[ -f "${EVENTS_FILE}" ]] || fatal "no events file: ${EVENTS_FILE}"
 
 # Filter events matching our veth IP pair, then validate.
-MATCHED=$(jq -s --arg saddr "${VETH_HOST_IP}" --arg daddr "${VETH_PEER_IP}" \
-	'[.[] | select(.tracer_data.tcp_saddr == $saddr and .tracer_data.tcp_daddr == $daddr)]' \
+MATCHED=$(jq -s --arg saddr "${TCP_NS_CLIENT_ADDR}" --arg daddr "${TCP_NS_SERVER_ADDR}" \
+	'[.[] | select(
+		(.tracer_data.tcp_saddr == $saddr)
+		and (.tracer_data.tcp_daddr == $daddr)
+		and (.tracer_data.latency_stage | type == "string")
+		and (.tracer_data.latency_ms | type == "number")
+		and (.tracer_data.latency_threshold_ms | type == "number")
+		and (.tracer_data.packet_len_bytes | type == "number")
+		and (.tracer_data.net_namespace_inum | type == "number")
+		and (.tracer_data.net_namespace_cookie | type == "number")
+		and (.tracer_data | has("lat_stage") | not)
+		and (.tracer_data | has("lat_ms") | not)
+		and (.tracer_data | has("lat_thresholds") | not)
+		and (.tracer_data | has("pkt_len") | not)
+	)]' \
 	"${EVENTS_FILE}" 2> /dev/null)
 
 event_count=$(echo "${MATCHED}" | jq 'length' 2> /dev/null || echo 0)
 event_count=$(echo "${event_count}" | tr -d '[:space:]')
-log_info "net_rx_latency events (${VETH_HOST_IP} -> ${VETH_PEER_IP}): ${event_count}"
+log_info "net_rx_latency events (${TCP_NS_CLIENT_ADDR} -> ${TCP_NS_SERVER_ADDR}): ${event_count}"
 
 if [[ "${event_count}" -eq 0 ]]; then
 	fatal "no matching net_rx_latency events found"
 fi
 
 log_info "net_rx_latency integration test passed: ${event_count} events"
-log_info "event details:"
-echo "${MATCHED}" | jq '.' 2> /dev/null || echo "${MATCHED}"
+log_info "valid event:"
+echo "${MATCHED}" | jq '.[0]' 2> /dev/null || echo "${MATCHED}"

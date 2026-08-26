@@ -74,6 +74,29 @@ func TestNewServerUsesHTTPGuardDefaults(t *testing.T) {
 	}
 }
 
+func TestNewServerDoesNotModifyConfig(t *testing.T) {
+	cfg := Config{ReadTimeout: time.Second}
+
+	s := NewServer(&cfg)
+
+	if cfg.ReadHeaderTimeout != 0 {
+		t.Errorf("input ReadHeaderTimeout = %s, want zero", cfg.ReadHeaderTimeout)
+	}
+	if cfg.ReadTimeout != time.Second {
+		t.Errorf("input ReadTimeout = %s, want %s", cfg.ReadTimeout, time.Second)
+	}
+	if s.config.ReadHeaderTimeout != defaultReadHeaderTimeout {
+		t.Errorf(
+			"effective ReadHeaderTimeout = %s, want %s",
+			s.config.ReadHeaderTimeout,
+			defaultReadHeaderTimeout,
+		)
+	}
+	if s.config.ReadTimeout != time.Second {
+		t.Errorf("effective ReadTimeout = %s, want %s", s.config.ReadTimeout, time.Second)
+	}
+}
+
 func TestNewServerRegistersHealthzRoute(t *testing.T) {
 	s := NewServer(nil)
 
@@ -135,15 +158,10 @@ func TestNewServerRegistersVersionRoute(t *testing.T) {
 	}
 
 	var got struct {
-		Code    int          `json:"code"`
-		Message string       `json:"message"`
-		Data    version.Info `json:"data"`
+		Data version.Info `json:"data"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode response: %v; body=%s", err, recorder.Body.String())
-	}
-	if got.Code != 0 || got.Message != "success" {
-		t.Fatalf("response code/message = %d/%q, want 0/success", got.Code, got.Message)
 	}
 	if got.Data != info {
 		t.Errorf("version response = %+v, want %+v", got.Data, info)
@@ -204,14 +222,14 @@ func TestServerAuthPolicyKeepsMetricsPublicAndPProfAdminOnly(t *testing.T) {
 }
 
 func TestPromServerHandlerWithRegistry(t *testing.T) {
-	s := &server{promRegistry: prometheus.NewRegistry()}
+	s := &Server{promRegistry: prometheus.NewRegistry()}
 
-	handler := s.promServerHandler()
+	handler := s.metricsHandler()
 	ctx, recorder := newTestServerContext(http.MethodGet, "/metrics", "")
 
 	err := handler(ctx)
 	if err != nil {
-		t.Errorf("promServerHandler() error = %v", err)
+		t.Errorf("metricsHandler() error = %v", err)
 	}
 	if recorder.Code != http.StatusOK {
 		t.Errorf("response status = %d, want %d", recorder.Code, http.StatusOK)
@@ -241,8 +259,64 @@ func TestNewRateLimitMiddleware(t *testing.T) {
 	if secondRecorder.Code != http.StatusTooManyRequests {
 		t.Errorf("second response status = %d, want %d", secondRecorder.Code, http.StatusTooManyRequests)
 	}
-	if !strings.Contains(secondRecorder.Body.String(), `"message":"too many requests"`) {
-		t.Errorf("second response body = %q, want rate limit message", secondRecorder.Body.String())
+	if !strings.Contains(
+		secondRecorder.Body.String(),
+		`"error":{"code":"rate_limited","message":"too many requests"}`,
+	) {
+		t.Errorf("second response body = %q, want rate limit error", secondRecorder.Body.String())
+	}
+}
+
+func TestNewServerRateLimit(t *testing.T) {
+	tests := []struct {
+		name                 string
+		rateLimit            *RateLimitConfig
+		expectedSecondStatus int
+	}{
+		{
+			name:                 "disabled by default",
+			expectedSecondStatus: http.StatusNoContent,
+		},
+		{
+			name: "enabled when configured",
+			rateLimit: &RateLimitConfig{
+				RequestsPerSecond: 1,
+				Burst:             1,
+			},
+			expectedSecondStatus: http.StatusTooManyRequests,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := NewServer(&Config{RateLimit: test.rateLimit})
+			s.MustRegisterRoutes("", []Route{{
+				Method: http.MethodGet,
+				Path:   "/tasks",
+				Handler: func(ctx *Context) error {
+					ctx.Status(http.StatusNoContent)
+					return nil
+				},
+			}})
+
+			firstRequest := httptest.NewRequest(http.MethodGet, "/tasks", http.NoBody)
+			firstRecorder := httptest.NewRecorder()
+			s.engine.ServeHTTP(firstRecorder, firstRequest)
+			if firstRecorder.Code != http.StatusNoContent {
+				t.Fatalf("first response status = %d, want %d", firstRecorder.Code, http.StatusNoContent)
+			}
+
+			secondRequest := httptest.NewRequest(http.MethodGet, "/tasks", http.NoBody)
+			secondRecorder := httptest.NewRecorder()
+			s.engine.ServeHTTP(secondRecorder, secondRequest)
+			if secondRecorder.Code != test.expectedSecondStatus {
+				t.Errorf(
+					"second response status = %d, want %d",
+					secondRecorder.Code,
+					test.expectedSecondStatus,
+				)
+			}
+		})
 	}
 }
 
@@ -266,44 +340,60 @@ func TestServerGroupReturnsConfiguredRootGroup(t *testing.T) {
 
 func TestServerMustRegisterRoutes(t *testing.T) {
 	s := NewServer(&Config{Group: "/api"})
-	s.MustRegisterRoutes("/tasks", []Handle{
+	s.MustRegisterRoutes("/tasks", []Route{
 		{
-			Typ: HttpGet,
-			Uri: "/status",
-			Handle: func(ctx *Context) error {
+			Method: MethodAny,
+			Path:   "/disabled",
+			Handler: func(ctx *Context) error {
+				ctx.JSON(http.StatusServiceUnavailable, map[string]string{"method": ctx.Request().Method})
+				return nil
+			},
+		},
+		{
+			Method: http.MethodGet,
+			Path:   "/status",
+			Handler: func(ctx *Context) error {
 				ctx.JSON(http.StatusOK, map[string]string{"method": http.MethodGet})
 				return nil
 			},
 		},
 		{
-			Typ: HttpPost,
-			Uri: "",
-			Handle: func(ctx *Context) error {
+			Method: http.MethodPost,
+			Path:   "",
+			Handler: func(ctx *Context) error {
 				ctx.JSON(http.StatusCreated, map[string]string{"method": http.MethodPost})
 				return nil
 			},
 		},
 		{
-			Typ: HttpDelete,
-			Uri: "/task-20250226",
-			Handle: func(ctx *Context) error {
+			Method: http.MethodDelete,
+			Path:   "/task-20250226",
+			Handler: func(ctx *Context) error {
 				ctx.Status(http.StatusNoContent)
 				return nil
 			},
 		},
 		{
-			Typ: HttpPut,
-			Uri: "/task-20250226",
-			Handle: func(ctx *Context) error {
+			Method: http.MethodPut,
+			Path:   "/task-20250226",
+			Handler: func(ctx *Context) error {
 				ctx.JSON(http.StatusAccepted, map[string]string{"method": http.MethodPut})
 				return nil
 			},
 		},
 		{
-			Typ: HttpPatch,
-			Uri: "/task-20250226",
-			Handle: func(ctx *Context) error {
+			Method: http.MethodPatch,
+			Path:   "/task-20250226",
+			Handler: func(ctx *Context) error {
 				ctx.JSON(http.StatusOK, map[string]string{"method": http.MethodPatch})
+				return nil
+			},
+		},
+		{
+			Method: "PROPFIND",
+			Path:   "/extended",
+			Handler: func(ctx *Context) error {
+				ctx.Status(http.StatusNoContent)
 				return nil
 			},
 		},
@@ -316,6 +406,19 @@ func TestServerMustRegisterRoutes(t *testing.T) {
 		wantStatus   int
 		wantBodyPart string
 	}{
+		{
+			name:         "any-route",
+			method:       http.MethodOptions,
+			target:       "/api/tasks/disabled",
+			wantStatus:   http.StatusServiceUnavailable,
+			wantBodyPart: `"method":"OPTIONS"`,
+		},
+		{
+			name:       "extension-method-route",
+			method:     "PROPFIND",
+			target:     "/api/tasks/extended",
+			wantStatus: http.StatusNoContent,
+		},
 		{
 			name:         "get-route",
 			method:       http.MethodGet,
@@ -369,20 +472,24 @@ func TestServerMustRegisterRoutes(t *testing.T) {
 	}
 }
 
-func TestServerMustRegisterRoutesPanicsOnUnknownType(t *testing.T) {
+func TestServerMustRegisterRoutesPanicsWithoutMethod(t *testing.T) {
 	s := NewServer(nil)
 	defer func() {
 		recovered := recover()
 		if recovered == nil {
-			t.Errorf("MustRegisterRoutes() did not panic for unknown handler type")
+			t.Errorf("MustRegisterRoutes() did not panic for missing HTTP method")
 			return
 		}
-		if recovered != "unknown type" {
-			t.Errorf("panic value = %v, want %q", recovered, "unknown type")
+		if recovered != `route "/tasks" has no http method` {
+			t.Errorf(
+				"panic value = %v, want %q",
+				recovered,
+				`route "/tasks" has no http method`,
+			)
 		}
 	}()
 
-	s.MustRegisterRoutes("", []Handle{
-		{Typ: 99, Uri: "/tasks"},
+	s.MustRegisterRoutes("", []Route{
+		{Path: "/tasks"},
 	})
 }

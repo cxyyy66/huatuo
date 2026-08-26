@@ -16,6 +16,9 @@ package profiling
 
 import (
 	"encoding/json"
+	"errors"
+	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -23,23 +26,15 @@ import (
 	v1 "huatuo-bamai/apis/v1"
 	"huatuo-bamai/internal/job"
 	profileService "huatuo-bamai/internal/profiler/service"
+	"huatuo-bamai/internal/server"
+	"huatuo-bamai/internal/server/response"
 )
 
-func TestNewHandlerOmitsStorageRoutesWhenDisabled(t *testing.T) {
-	handler := NewHandler(nil, nil, Config{})
-
-	for _, route := range handler.Handlers {
-		if route.Uri == "/:id/raw" || strings.HasPrefix(route.Uri, "/flamegraph/") {
-			t.Errorf("storage route %q registered without profile storage", route.Uri)
-		}
-	}
-}
-
-func TestNewHandlerRegistersStorageRoutesWhenEnabled(t *testing.T) {
+func TestNewHandlerRegistersAllRoutes(t *testing.T) {
 	handler := NewHandler(nil, &profileService.Service{}, Config{})
 	routes := make(map[string]struct{}, len(handler.Handlers))
 	for _, route := range handler.Handlers {
-		routes[route.Uri] = struct{}{}
+		routes[route.Path] = struct{}{}
 	}
 
 	want := []string{
@@ -52,6 +47,41 @@ func TestNewHandlerRegistersStorageRoutesWhenEnabled(t *testing.T) {
 	for _, route := range want {
 		if _, ok := routes[route]; !ok {
 			t.Errorf("storage route %q is not registered", route)
+		}
+	}
+}
+
+func TestDisabledHandlersRejectAllProfilePaths(t *testing.T) {
+	routes := DisabledHandlers()
+	if len(routes) != 2 {
+		t.Fatalf("DisabledHandlers() len = %d, want 2", len(routes))
+	}
+
+	wantPaths := []string{"", "/*path"}
+	for i, route := range routes {
+		if route.Method != server.MethodAny {
+			t.Errorf("route %q method = %q, want MethodAny", route.Path, route.Method)
+		}
+		if route.Path != wantPaths[i] {
+			t.Errorf("route %d path = %q, want %q", i, route.Path, wantPaths[i])
+		}
+
+		err := route.Handler(nil)
+		var apiErr *response.APIError
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("route %q error type = %T, want *response.APIError", route.Path, err)
+		}
+		if apiErr.HTTPStatus != http.StatusServiceUnavailable || apiErr.Code != v1.ErrorCodeProfilingDisabled {
+			t.Errorf(
+				"route %q status/code = %d/%q, want 503/%q",
+				route.Path,
+				apiErr.HTTPStatus,
+				apiErr.Code,
+				v1.ErrorCodeProfilingDisabled,
+			)
+		}
+		if apiErr.Message != "profiling is disabled: configure profile storage to enable it" {
+			t.Errorf("route %q message = %q, want actionable disabled message", route.Path, apiErr.Message)
 		}
 	}
 }
@@ -71,7 +101,7 @@ func TestGetFlameGraphURLEscapesLabelValue(t *testing.T) {
 
 func TestNewHandlerSnapshotsProfilingConfig(t *testing.T) {
 	cfg := Config{AggregationIntervalSeconds: 15}
-	h := NewHandler(nil, nil, cfg)
+	h := NewHandler(nil, &profileService.Service{}, cfg)
 	cfg.AggregationIntervalSeconds = 30
 
 	if h.profilingConfig.AggregationIntervalSeconds != 15 {
@@ -83,7 +113,8 @@ func TestNewHandlerSnapshotsProfilingConfig(t *testing.T) {
 }
 
 // TestCapabilities verifies that the capabilities handler returns the correct
-// profiling types, languages, memory modes, and default configuration values.
+// profiling types, languages, CPU and memory modes, and default configuration
+// values.
 func TestCapabilities(t *testing.T) {
 	h := &Handler{profilingConfig: Config{
 		AggregationIntervalSeconds:     15,
@@ -120,6 +151,15 @@ func TestCapabilities(t *testing.T) {
 	if !hasPython {
 		t.Errorf("CPULanguages = %v, want contain python", resp.CPULanguages)
 	}
+	if len(resp.CPUModes) != 5 {
+		t.Errorf("CPUModes len = %d, want 5", len(resp.CPUModes))
+	}
+	if got := resp.CPUModes["go"]; !slices.Equal(got, []string{"offcpu", "oncpu"}) {
+		t.Errorf("CPUModes[go] = %v, want [offcpu oncpu]", got)
+	}
+	if got := resp.CPUModes["java"]; !slices.Equal(got, []string{"oncpu"}) {
+		t.Errorf("CPUModes[java] = %v, want [oncpu]", got)
+	}
 
 	if len(resp.MemoryLanguages) != 4 {
 		t.Errorf("MemoryLanguages len = %d, want 4 (c++, c, go, java)", len(resp.MemoryLanguages))
@@ -155,6 +195,21 @@ func TestCapabilitiesReturnsIndependentMemoryModeMap(t *testing.T) {
 	}
 	if _, ok := next.MemoryModes["new"]; ok {
 		t.Errorf("MemoryModes retained a caller mutation")
+	}
+}
+
+func TestCapabilitiesReturnsIndependentCPUModeMap(t *testing.T) {
+	h := &Handler{}
+	resp := buildCapabilities(h)
+	resp.CPUModes["new"] = []string{"new_mode"}
+	resp.CPUModes["go"][0] = "modified"
+
+	next := buildCapabilities(h)
+	if next.CPUModes["go"][0] != "offcpu" {
+		t.Errorf("CPUModes was mutated across responses")
+	}
+	if _, ok := next.CPUModes["new"]; ok {
+		t.Errorf("CPUModes retained a caller mutation")
 	}
 }
 

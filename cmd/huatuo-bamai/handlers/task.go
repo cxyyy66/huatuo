@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"time"
 
+	v1 "huatuo-bamai/apis/v1"
 	"huatuo-bamai/cmd/huatuo-bamai/config"
 	"huatuo-bamai/internal/server"
 	"huatuo-bamai/internal/server/response"
@@ -28,16 +29,16 @@ import (
 )
 
 type TaskHandler struct {
-	Handlers []server.Handle
+	Handlers []server.Route
 }
 
 func NewTaskHandler() *TaskHandler {
 	h := &TaskHandler{}
-	h.Handlers = []server.Handle{
-		{Typ: server.HttpPost, Uri: "", Handle: h.create},
-		{Typ: server.HttpGet, Uri: "", Handle: h.list},
-		{Typ: server.HttpGet, Uri: "/:id", Handle: h.get},
-		{Typ: server.HttpDelete, Uri: "/:id", Handle: h.stop},
+	h.Handlers = []server.Route{
+		{Method: http.MethodPost, Path: "", Handler: h.create},
+		{Method: http.MethodGet, Path: "", Handler: h.list},
+		{Method: http.MethodGet, Path: "/:id", Handler: h.get},
+		{Method: http.MethodDelete, Path: "/:id", Handler: h.stop},
 	}
 	return h
 }
@@ -53,10 +54,15 @@ type NewTaskReq struct {
 func handleBindError(ctx *server.Context, err error) {
 	var validationError *validator.ValidationErrors
 	if errors.As(err, &validationError) {
-		response.ErrorWithCode(ctx, http.StatusBadRequest, 400, (*validationError)[0].Namespace())
+		response.ErrorWithCode(
+			ctx,
+			http.StatusBadRequest,
+			v1.ErrorCodeInvalidRequest,
+			(*validationError)[0].Namespace(),
+		)
 		return
 	}
-	response.ErrorWithCode(ctx, http.StatusBadRequest, 400, err.Error())
+	response.ErrorWithCode(ctx, http.StatusBadRequest, v1.ErrorCodeInvalidRequest, err.Error())
 }
 
 func (h *TaskHandler) create(ctx *server.Context) error {

@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"huatuo-bamai/internal/log"
+	"huatuo-bamai/internal/process"
 	"huatuo-bamai/internal/procfs"
-	"huatuo-bamai/internal/profiler/procutil"
 	"huatuo-bamai/internal/utils/fileutil"
 )
 
@@ -56,6 +56,7 @@ type UsymResolver struct {
 	libKeys         map[string]cacheKey    // libpath → cachekey
 	procmaps        map[uint32]sections
 	processPaths    map[uint32]elfProcessPath
+	names           map[string]string
 	elfSymbolLimits ELFSymbolLimits
 }
 
@@ -83,6 +84,7 @@ func NewUsymResolver(options ...UsymResolverOption) *UsymResolver {
 		libKeys:         make(map[string]cacheKey),
 		procmaps:        make(map[uint32]sections),
 		processPaths:    make(map[uint32]elfProcessPath),
+		names:           make(map[string]string),
 		elfSymbolLimits: DefaultELFSymbolLimits(),
 	}
 	for _, option := range options {
@@ -301,11 +303,22 @@ func (r *UsymResolver) resolveAddrs(pid uint32, addrs []uint64) []string {
 			name := group.resolved[pc]
 			if name == "" {
 				name = group.failures[offset]
+			} else {
+				name = r.displayName(name)
 			}
 			result[group.indices[offset]] = name
 		}
 	}
 	return result
+}
+
+func (r *UsymResolver) displayName(name string) string {
+	if display, ok := r.names[name]; ok {
+		return display
+	}
+	display := demangleSymbolName(name)
+	r.names[name] = display
+	return display
 }
 
 func (r *UsymResolver) resolveELFPCs(path string, fallback symbols, resolved map[uint64]string, pcs []uint64) error {
@@ -465,7 +478,7 @@ func (r *UsymResolver) mountKeyForPID(pid uint32, hostPath string) (string, erro
 		return "", nil
 	}
 
-	inContainer, err := procutil.IsProcessInContainer(int(pid))
+	inContainer, err := process.IsInContainer(int(pid))
 	if err != nil {
 		return "", err
 	}

@@ -21,12 +21,14 @@ import (
 	"strconv"
 	"strings"
 
+	"huatuo-bamai/internal/process"
 	"huatuo-bamai/internal/profiler"
 	"huatuo-bamai/internal/profiler/aggregator"
 	pcontext "huatuo-bamai/internal/profiler/context"
-	executil "huatuo-bamai/internal/profiler/exec"
-	"huatuo-bamai/internal/profiler/procutil"
+	profilerexec "huatuo-bamai/internal/profiler/exec"
+	profilerprocess "huatuo-bamai/internal/profiler/process"
 	"huatuo-bamai/internal/profiler/registry"
+	"huatuo-bamai/internal/utils/executil"
 	"huatuo-bamai/pkg/profiling"
 )
 
@@ -82,7 +84,7 @@ func (p *pythonCPUProfiler) Start(pctx *pcontext.ProfilerContext) error {
 			return err
 		}
 	}
-	pids, err = pythonRootPids(pids, procutil.ParentPID)
+	pids, err = pythonRootPids(pids, process.PPID)
 	if err != nil {
 		return err
 	}
@@ -108,7 +110,10 @@ func resolvePythonPids(pctx *pcontext.ProfilerContext) ([]int, error) {
 		return pctx.PIDs, nil
 	}
 
-	pids, err := procutil.GetPidsFromContainer(pctx.ExecPath, "python", pctx.ContainerID)
+	pids, err := profilerprocess.ContainerRootPIDs(pctx.ContainerID, profilerprocess.ExecutableFilter{
+		ExecutablePrefix: "python",
+		ExecutablePath:   pctx.ExecPath,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +161,7 @@ func runPySpy(ctx context.Context, pids []int, dur, freq int, pyspyPath string) 
 	durStr := strconv.Itoa(dur)
 	freqStr := strconv.Itoa(freq)
 
-	return executil.ExecCmds(ctx, pids, pyspyBin, func(pid int) []string {
+	return profilerexec.ExecCmds(ctx, pids, pyspyBin, func(pid int) []string {
 		return buildPySpyArgs(pid, durStr, freqStr)
 	})
 }

@@ -16,6 +16,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -38,7 +39,7 @@ import (
 
 // HungTaskTracerData is the full data structure.
 type HungTaskTracerData struct {
-	Pid                   int32  `json:"pid"`
+	TID                   uint32 `json:"tid"`
 	Comm                  string `json:"comm"`
 	CPUsStack             string `json:"cpus_stack"`
 	BlockedProcessesStack string `json:"blocked_processes_stack"`
@@ -108,6 +109,10 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 		default:
 			var data abi.HungtaskEvent
 			if err := reader.ReadInto(&data); err != nil {
+				if errors.Is(err, bpf.ErrPerfEventSamplesLost) {
+					log.WithError(err).Warn("lost BPF perf event samples")
+					continue
+				}
 				return fmt.Errorf("hungtask ReadFromPerfEvent: %w", err)
 			}
 
@@ -134,7 +139,7 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 				TracerName: "hungtask",
 				TracerTime: time.Now(),
 				TracerData: &HungTaskTracerData{
-					Pid:                   data.PID,
+					TID:                   data.TID,
 					Comm:                  bytesutil.ToStr(data.Comm[:]),
 					CPUsStack:             cpusBT,
 					BlockedProcessesStack: blockedProcessesBT,

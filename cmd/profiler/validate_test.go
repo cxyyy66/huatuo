@@ -77,7 +77,7 @@ func TestCLIProfileTypeAndRemovedFlags(t *testing.T) {
 		{
 			name:      "legacy mem type",
 			args:      []string{"--type", "mem", "--language", "c"},
-			wantError: `unsupported profiling type "mem" (expected: cpu or memory)`,
+			wantError: `unsupported profiling type "mem"`,
 		},
 		{
 			name:      "removed flags option",
@@ -254,12 +254,82 @@ func TestValidateProfilerFlagCompatibility(t *testing.T) {
 		wantError string
 	}{
 		{name: "native CPU cpuid", language: "go", typ: "cpu", args: []string{"--cpuid", "1"}},
+		{name: "native hardware PMU", language: "go", typ: "cpu", args: []string{"--require-hardware-pmu"}},
+		{name: "native off-CPU", language: "go", typ: "cpu", args: []string{"--cpu-mode", "offcpu"}},
+		{
+			name:      "Java off-CPU",
+			language:  "java",
+			typ:       "cpu",
+			args:      []string{"--cpu-mode", "offcpu"},
+			wantError: "--cpu-mode=offcpu is supported only by native CPU profiling",
+		},
+		{
+			name:     "native off-CPU cpuid",
+			language: "c",
+			typ:      "cpu",
+			args:     []string{"--cpu-mode", "offcpu", "--cpuid", "1"},
+		},
+		{
+			name:     "native off-CPU stats",
+			language: "c",
+			typ:      "cpu",
+			args:     []string{"--cpu-mode", "offcpu", "--offcpu-stats"},
+		},
+		{
+			name:      "off-CPU stats require mode",
+			language:  "go",
+			typ:       "cpu",
+			args:      []string{"--offcpu-stats"},
+			wantError: "--offcpu-stats requires native CPU profiling with --cpu-mode=offcpu",
+		},
+		{
+			name:      "off-CPU rejects explicit frequency",
+			language:  "go",
+			typ:       "cpu",
+			args:      []string{"--cpu-mode", "offcpu", "--freq", "99"},
+			wantError: "--freq is not used with --cpu-mode=offcpu",
+		},
+		{
+			name:      "off-CPU rejects hardware PMU",
+			language:  "go",
+			typ:       "cpu",
+			args:      []string{"--cpu-mode", "offcpu", "--require-hardware-pmu"},
+			wantError: "--require-hardware-pmu requires native CPU profiling with --cpu-mode=oncpu",
+		},
+		{
+			name:      "off-CPU minimum duration requires mode",
+			language:  "c++",
+			typ:       "cpu",
+			args:      []string{"--offcpu-min-duration-us", "100"},
+			wantError: "--offcpu-min-duration-us requires native CPU profiling with --cpu-mode=offcpu",
+		},
+		{
+			name:      "off-CPU metric requires mode",
+			language:  "go",
+			typ:       "cpu",
+			args:      []string{"--offcpu-phase", "blocked"},
+			wantError: "--offcpu-phase requires native CPU profiling with --cpu-mode=offcpu",
+		},
+		{
+			name:      "invalid off-CPU phase",
+			language:  "go",
+			typ:       "cpu",
+			args:      []string{"--cpu-mode", "offcpu", "--offcpu-phase", "wait"},
+			wantError: `unsupported off-CPU phase "wait"`,
+		},
 		{
 			name:      "Java cpuid",
 			language:  "java",
 			typ:       "cpu",
 			args:      []string{"--cpuid", "1"},
 			wantError: "--cpuid is supported only by native CPU profiling",
+		},
+		{
+			name:      "Java hardware PMU",
+			language:  "java",
+			typ:       "cpu",
+			args:      []string{"--require-hardware-pmu"},
+			wantError: "--require-hardware-pmu requires native CPU profiling with --cpu-mode=oncpu",
 		},
 		{
 			name:      "Python BPF debug",
@@ -342,6 +412,11 @@ func TestValidateProfilerFlagCompatibility(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestOffCPUStatsFlag(t *testing.T) {
+	require.False(t, newValidationCLIContext(t).Bool("offcpu-stats"))
+	require.True(t, newValidationCLIContext(t, "--offcpu-stats").Bool("offcpu-stats"))
 }
 
 func TestValidateOutputFormat(t *testing.T) {

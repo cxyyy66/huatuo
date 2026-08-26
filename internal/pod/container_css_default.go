@@ -17,7 +17,6 @@
 package pod
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -38,6 +37,7 @@ import (
 	"huatuo-bamai/internal/utils/bytesutil"
 	"huatuo-bamai/pkg/types"
 
+	"github.com/cilium/ebpf/btf"
 	mapset "github.com/deckarep/golang-set"
 )
 
@@ -161,6 +161,10 @@ func cgroupCssEventSyncHandler(ctx context.Context, reader bpf.PerfEventReader) 
 			default:
 				var data containerCssPerfEvent
 				if err := reader.ReadInto(&data); err != nil {
+					if errors.Is(err, bpf.ErrPerfEventSamplesLost) {
+						log.WithError(err).Warn("lost BPF perf event samples")
+						continue
+					}
 					if !errors.Is(err, types.ErrExitByCancelCtx) {
 						log.Errorf("cgroup css sync read events: %v", err)
 					}
@@ -169,13 +173,13 @@ func cgroupCssEventSyncHandler(ctx context.Context, reader bpf.PerfEventReader) 
 
 				log.Debugf("sync container css data: %+v", data)
 
-				switch data.OpsType {
-				case 0: // mkdir cgroup, or cgroupv1/v2 read specific file to collect css
+				switch data.Operation {
+				case abi.CgroupCSSOperationUpdate:
 					_ = cgroupUpdateOrCreateCssData(&data)
-				case 1: // rmdir cgroup
+				case abi.CgroupCSSOperationRemove:
 					_ = cgroupDeleteCssData(&data)
 				default:
-					log.Errorf("css event opstype not supported: %+v", data)
+					log.Errorf("unsupported cgroup CSS operation: %+v", data)
 				}
 			}
 		}
@@ -244,26 +248,70 @@ func cgroupCssNotifyFile() {
 }
 
 func cgroupInitSubSysIDs() error {
-	file, err := os.Open("/proc/cgroups")
+	spec, err := btf.LoadSpec("/sys/kernel/btf/vmlinux")
+	if err != nil {
+		return fmt.Errorf("load kernel BTF: %w", err)
+	}
+
+	var subsystems *btf.Enum
+	if err := spec.TypeByName("cgroup_subsys_id", &subsystems); err != nil {
+		return fmt.Errorf("find cgroup_subsys_id in kernel BTF: %w", err)
+	}
+
+	ids, err := cgroupSubSysIDNameMap(subsystems.Values)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
+	cgroupCssID2SubSysNameMap = ids
+	return nil
+}
 
-	// skip frst head
-	scanner.Scan()
+func cgroupSubSysIDNameMap(values []btf.EnumValue) (map[int]string, error) {
+	ids := make(map[int]string, len(values))
+	nameIDs := make(map[string]int, len(values))
+	for _, value := range values {
+		name, ok := strings.CutSuffix(value.Name, "_cgrp_id")
+		if !ok {
+			continue
+		}
+		if value.Value >= uint64(len(containerCssPerfEvent{}.CSS)) {
+			continue
+		}
 
-	ssid := 0
-	for scanner.Scan() {
-		arr := strings.SplitN(scanner.Text(), "\t", 2)
-		cgroupCssID2SubSysNameMap[ssid] = arr[0]
-		ssid++
+		// Kernel BTF calls this controller io, while cgroup v1 paths and the
+		// project's canonical subsystem key use blkio.
+		if name == "io" {
+			name = subsystem.SubsystemBlkIO
+		}
+
+		id := int(value.Value)
+		if previous, ok := ids[id]; ok {
+			return nil, fmt.Errorf(
+				"cgroup subsystem id %d maps to both %q and %q",
+				id,
+				previous,
+				name,
+			)
+		}
+		if previous, ok := nameIDs[name]; ok {
+			return nil, fmt.Errorf(
+				"cgroup subsystem %q maps to both ids %d and %d",
+				name,
+				previous,
+				id,
+			)
+		}
+
+		ids[id] = name
+		nameIDs[name] = id
 	}
 
-	return nil
+	if len(ids) == 0 {
+		return nil, errors.New("cgroup_subsys_id has no subsystem values")
+	}
+
+	return ids, nil
 }
 
 func cgroupCssInitEventSync() error {

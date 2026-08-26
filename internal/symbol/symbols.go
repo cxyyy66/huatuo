@@ -27,9 +27,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ianlancetaylor/demangle"
+
 	"huatuo-bamai/internal/log"
+	"huatuo-bamai/internal/process"
 	"huatuo-bamai/internal/procfs"
-	"huatuo-bamai/internal/profiler/procutil"
 )
 
 type outType uint8
@@ -609,6 +611,11 @@ func elfSymbolsForPCsWithState(f *elf.File, pcs []uint64, state *elfSymbolParseS
 	return syms, errors.Join(append(limitErrors, parseErrors...)...)
 }
 
+// demangleSymbolName returns name unchanged when it is not a mangled C++/Rust symbol.
+func demangleSymbolName(name string) string {
+	return demangle.Filter(name, demangle.NoRust)
+}
+
 // backedPaths is the set of pseudo-paths in /proc/<pid>/maps with no ELF symbols.
 var backedPaths = map[string]struct{}{
 	"anon_inode:[perf_event]": {},
@@ -682,7 +689,7 @@ func initXfsMounts() error {
 		return err
 	}
 
-	if selfInContainer, _ := procutil.IsProcessInContainer(os.Getpid()); selfInContainer {
+	if selfInContainer, _ := process.IsInContainer(os.Getpid()); selfInContainer {
 		hostMounts, err := xfsMountPointsFromHost()
 		if err == nil && len(hostMounts) > 0 {
 			xfsMounts = hostMounts

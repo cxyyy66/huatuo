@@ -22,6 +22,7 @@ import (
 	"huatuo-bamai/internal/log"
 	profileService "huatuo-bamai/internal/profiler/service"
 	"huatuo-bamai/internal/server"
+	"huatuo-bamai/internal/server/response"
 
 	"github.com/gin-gonic/gin/binding"
 )
@@ -33,23 +34,19 @@ func handleProto[Request, Response any](
 ) error {
 	req := new(Request)
 	if err := ctx.ShouldBindBodyWith(req, binding.ProtoBuf); err != nil {
-		ctx.JSON(http.StatusBadRequest, map[string]any{"message": "invalid protobuf request"})
-		return nil
+		return response.ErrInvalidRequest.WithMessage("invalid protobuf request")
 	}
 
 	resp, err := invoke(ctx.Request().Context(), req)
 	if err != nil {
 		if errors.Is(err, profileService.ErrInvalidQuery) {
-			ctx.JSON(http.StatusBadRequest, map[string]any{"message": err.Error()})
-			return nil
+			return response.ErrInvalidRequest.WithMessage(err.Error())
 		}
 		if errors.Is(err, profileService.ErrProfilesAbsent) {
-			ctx.JSON(http.StatusNotFound, map[string]any{"message": "profiles not found"})
-			return nil
+			return response.ErrNotFound.WithMessage("profiles not found")
 		}
 		log.WithError(err).WithField("operation", operation).Error("profile query failed")
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"message": "internal error"})
-		return nil
+		return response.ErrInternal
 	}
 
 	ctx.Header("Content-Type", "application/proto")
@@ -58,17 +55,17 @@ func handleProto[Request, Response any](
 }
 
 func (h *Handler) displaySelectMergeStacktraces(ctx *server.Context) error {
-	return handleProto(ctx, "select_merge_stacktraces", h.profileService.SelectMergeStacktraces)
+	return handleProto(ctx, "select_merge_stacktraces", h.profileQueryService.SelectMergeStacktraces)
 }
 
 func (h *Handler) displayProfileTypes(ctx *server.Context) error {
-	return handleProto(ctx, "profile_types", h.profileService.ProfileTypes)
+	return handleProto(ctx, "profile_types", h.profileQueryService.ProfileTypes)
 }
 
 func (h *Handler) displayLabelNames(ctx *server.Context) error {
-	return handleProto(ctx, "label_names", h.profileService.LabelNames)
+	return handleProto(ctx, "label_names", h.profileQueryService.LabelNames)
 }
 
 func (h *Handler) displayLabelValues(ctx *server.Context) error {
-	return handleProto(ctx, "label_values", h.profileService.LabelValues)
+	return handleProto(ctx, "label_values", h.profileQueryService.LabelValues)
 }

@@ -17,56 +17,43 @@ package handlers
 import (
 	"context"
 	"errors"
-	"net"
 
 	"huatuo-bamai/cmd/huatuo-apiserver/handlers/profiling"
 	"huatuo-bamai/cmd/huatuo-apiserver/handlers/trace"
+	"huatuo-bamai/internal/job"
 	"huatuo-bamai/internal/server"
 	"huatuo-bamai/internal/version"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/time/rate"
 )
 
 // ServerOptions groups the dependencies required to start the API server.
 type ServerOptions struct {
-	Addr                string
-	PromReg             *prometheus.Registry
-	TraceJobManager     trace.JobManager
-	ProfilingJobManager profiling.JobManager
-	ProfileService      profiling.ProfileQueryService
-	ProfilingConfig     profiling.Config
-	AuthUsers           []server.UserConfig
-	EnablePProf         bool
-	VersionInfo         *version.Info
-	RateLimit           rate.Limit
-	RateBurst           int
-	Ready               func(context.Context) error
-}
-
-// RunningServer exposes the lifecycle of the API listener.
-type RunningServer interface {
-	Shutdown(ctx context.Context) error
-	Done() <-chan struct{}
-	Wait(ctx context.Context) error
-	Addr() net.Addr
+	Addr            string
+	PromReg         *prometheus.Registry
+	JobManager      *job.Manager
+	ProfileService  profiling.ProfileQueryService
+	ProfilingConfig profiling.Config
+	AuthUsers       []server.UserConfig
+	EnablePProf     bool
+	VersionInfo     *version.Info
+	RateLimit       *server.RateLimitConfig
+	Ready           func(context.Context) error
 }
 
 // Start starts the API service with the given configuration.
-func Start(opts *ServerOptions) (RunningServer, error) {
+func Start(opts *ServerOptions) (*server.Server, error) {
 	if opts == nil {
 		return nil, errors.New("start API server: options are required")
 	}
-	if opts.TraceJobManager == nil || opts.ProfilingJobManager == nil {
-		return nil, errors.New("start API server: job managers are required")
+	if opts.JobManager == nil {
+		return nil, errors.New("start API server: job manager is required")
 	}
 	httpServer := server.NewServer(&server.Config{
-		RequireAuth:     true,
-		EnablePProf:     opts.EnablePProf,
-		EnableRateLimit: true,
-		RateLimit:       opts.RateLimit,
-		RateBurst:       opts.RateBurst,
-		AuthUsers:       opts.AuthUsers,
+		RequireAuth: true,
+		EnablePProf: opts.EnablePProf,
+		RateLimit:   opts.RateLimit,
+		AuthUsers:   opts.AuthUsers,
 		AdminPaths: []string{
 			"/v1/profiles/flamegraph/**",
 		},
@@ -76,11 +63,19 @@ func Start(opts *ServerOptions) (RunningServer, error) {
 	})
 
 	// Register trace routes
-	httpServer.MustRegisterRoutes("/v1/traces", trace.NewHandler(opts.TraceJobManager).Handlers)
 	httpServer.MustRegisterRoutes(
-		"/v1/profiles",
-		profiling.NewHandler(opts.ProfilingJobManager, opts.ProfileService, opts.ProfilingConfig).Handlers,
+		"/v1/traces",
+		trace.NewHandler(opts.JobManager).Handlers,
 	)
+	profileHandlers := profiling.DisabledHandlers()
+	if opts.ProfileService != nil {
+		profileHandlers = profiling.NewHandler(
+			opts.JobManager,
+			opts.ProfileService,
+			opts.ProfilingConfig,
+		).Handlers
+	}
+	httpServer.MustRegisterRoutes("/v1/profiles", profileHandlers)
 
 	if err := httpServer.Start(opts.Addr); err != nil {
 		return nil, err

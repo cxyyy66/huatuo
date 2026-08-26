@@ -25,7 +25,6 @@ import (
 	"huatuo-bamai/internal/bpf/abi"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/profiler/bpfmap"
-	"huatuo-bamai/internal/profiler/procutil"
 	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/pkg/types"
 )
@@ -34,6 +33,12 @@ import (
 // or B chosen by transferCnt parity; userspace flips parity each tick, then
 // drains the just-frozen ring. ~100ms balances responsiveness and overhead.
 const drainTick = 100 * time.Millisecond
+
+// validateStackID reports whether an ID returned by bpf_get_stackid can index a stack map.
+// Zero is a valid key; only negative values indicate lookup errors.
+func validateStackID(stackID int32) bool {
+	return stackID >= 0
+}
 
 // ringBufferContext holds the shared ring buffer state for A/B buffer management.
 // It encapsulates all the common infrastructure needed for dual-buffer profiling
@@ -74,6 +79,29 @@ func newRingBufferContext(b bpf.BPF, ctx context.Context, bufferSize int, needsF
 		stackMapBID:        b.MapIDByName("stack_map_b"),
 		needsFallback:      needsFallback,
 		usym:               symbol.NewUsymResolver(),
+	}, nil
+}
+
+func newSingleRingBufferContext(
+	b bpf.BPF,
+	ctx context.Context,
+	bufferSize int,
+) (*ringBufferContext, error) {
+	stackMapID := b.MapIDByName("stack_map_a")
+	if stackMapID == 0 {
+		return nil, errors.New("stack_map_a not found")
+	}
+
+	reader, err := b.EventPipeByName(ctx, "profiler_output_a", uint32(bufferSize))
+	if err != nil {
+		return nil, fmt.Errorf("create readerA: %w", err)
+	}
+
+	return &ringBufferContext{
+		bpf:         b,
+		readerA:     reader,
+		stackMapAID: stackMapID,
+		usym:        symbol.NewUsymResolver(),
 	}, nil
 }
 
@@ -166,15 +194,7 @@ func (r *ringBufferContext) drainActiveRingBuffer(
 	// number of events read equals the BPF-reported count.
 	totalRead := uint64(0)
 	for {
-		batch, err := ring.reader.ReadBatch(newEvent())
-		if err != nil {
-			if errors.Is(err, types.ErrExitByCancelCtx) {
-				return nil, activeRingBuffer{}, err
-			}
-			log.Warnf("read batch: %v", err)
-			break
-		}
-
+		batch, err := ring.reader.ReadBatch(newEvent)
 		totalRead += uint64(len(batch))
 
 		for _, rec := range batch {
@@ -182,14 +202,15 @@ func (r *ringBufferContext) drainActiveRingBuffer(
 			switch event := rec.(type) {
 			case *abi.ProfilerEventBase:
 				base = event
-			case *abi.ProfilerCPUEvent:
+			case *abi.ProfilerOnCPUEvent:
 				base = &event.Base
 			default:
 				continue
 			}
 
 			// Skip events without valid stacks
-			if base.Kernstack <= 0 && base.Userstack <= 0 {
+			if !validateStackID(base.Kernstack) &&
+				!validateStackID(base.Userstack) {
 				continue
 			}
 
@@ -206,12 +227,20 @@ func (r *ringBufferContext) drainActiveRingBuffer(
 			stackIDs := stackIDPair{KernelStackID: base.Kernstack, UserStackID: base.Userstack}
 			// Extract tgid (process ID) from upper 32 bits of pid_tgid
 			tgid := uint32(base.PIDTGID >> 32)
-			process := processKey{PID: tgid, Comm: procutil.CommToString(base.Comm)}
+			process := processKey{PID: tgid, Comm: taskCommString(base.Comm)}
 
 			if sampleCountsByProcess[process] == nil {
 				sampleCountsByProcess[process] = make(map[stackIDPair]int64)
 			}
 			sampleCountsByProcess[process][stackIDs] += value
+		}
+
+		if err != nil {
+			if errors.Is(err, types.ErrExitByCancelCtx) {
+				return nil, activeRingBuffer{}, err
+			}
+			log.WithError(err).Warn("failed to read BPF event batch")
+			break
 		}
 
 		log.Debugf("drain batch: read=%d total=%d procs=%d", len(batch), totalRead, len(sampleCountsByProcess))
@@ -287,7 +316,7 @@ func (r *ringBufferContext) aggregateStacksAndEnqueue(
 				continue
 			}
 
-			if stackIDs.KernelStackID > 0 {
+			if validateStackID(stackIDs.KernelStackID) {
 				if _, ok := kstackCache[stackIDs.KernelStackID]; !ok {
 					kstackCache[stackIDs.KernelStackID] = r.resolveKstackWithFallback(
 						ring,
@@ -295,7 +324,7 @@ func (r *ringBufferContext) aggregateStacksAndEnqueue(
 					)
 				}
 			}
-			if stackIDs.UserStackID > 0 {
+			if validateStackID(stackIDs.UserStackID) {
 				if _, ok := ustackCache[stackIDs.UserStackID]; !ok {
 					ustackCache[stackIDs.UserStackID] = r.resolveUstackWithFallback(
 						ring,
@@ -330,16 +359,13 @@ func (r *ringBufferContext) aggregateStacksAndEnqueue(
 // Fast path: lookup primary stackMapID (90-95% hit rate).
 // Slow path: fallback to another stackMapID if primary lookup fails.
 func (r *ringBufferContext) resolveKstackWithFallback(ring activeRingBuffer, kernelID int32) string {
-	trace, ok := readStackTrace(r.bpf, ring.stackMapID, kernelID)
-	if ok {
-		return strings.Join(symbol.KsymStackStrsReversed(trace[:], len(trace)), ";") + ";"
+	stack := r.resolveKernelStack(ring.stackMapID, kernelID)
+	if stack != "" {
+		return stack
 	}
 
 	if ring.fallbackStackMapID != 0 {
-		trace, ok = readStackTrace(r.bpf, ring.fallbackStackMapID, kernelID)
-		if ok {
-			return strings.Join(symbol.KsymStackStrsReversed(trace[:], len(trace)), ";") + ";"
-		}
+		return r.resolveKernelStack(ring.fallbackStackMapID, kernelID)
 	}
 
 	return ""
@@ -349,19 +375,42 @@ func (r *ringBufferContext) resolveKstackWithFallback(ring activeRingBuffer, ker
 // Fast path: lookup primary stackMapID (90-95% hit rate).
 // Slow path: fallback to another stackMapID if primary lookup fails.
 func (r *ringBufferContext) resolveUstackWithFallback(ring activeRingBuffer, userID int32, pid uint32) string {
-	trace, ok := readStackTrace(r.bpf, ring.stackMapID, userID)
-	if ok {
-		return strings.Join(r.usym.UsymStackStrsReversed(pid, trace[:], len(trace)), ";") + ";"
+	stack := r.resolveUserStack(ring.stackMapID, userID, pid)
+	if stack != "" {
+		return stack
 	}
 
 	if ring.fallbackStackMapID != 0 {
-		trace, ok = readStackTrace(r.bpf, ring.fallbackStackMapID, userID)
-		if ok {
-			return strings.Join(r.usym.UsymStackStrsReversed(pid, trace[:], len(trace)), ";") + ";"
-		}
+		return r.resolveUserStack(ring.fallbackStackMapID, userID, pid)
 	}
 
 	return ""
+}
+
+func (r *ringBufferContext) resolveKernelStack(stackMapID uint32, stackID int32) string {
+	if !validateStackID(stackID) {
+		return ""
+	}
+
+	trace, ok := readStackTrace(r.bpf, stackMapID, stackID)
+	if !ok {
+		return ""
+	}
+
+	return strings.Join(symbol.KsymStackStrsReversed(trace[:], len(trace)), ";") + ";"
+}
+
+func (r *ringBufferContext) resolveUserStack(stackMapID uint32, stackID int32, pid uint32) string {
+	if !validateStackID(stackID) {
+		return ""
+	}
+
+	trace, ok := readStackTrace(r.bpf, stackMapID, stackID)
+	if !ok {
+		return ""
+	}
+
+	return strings.Join(r.usym.UsymStackStrsReversed(pid, trace[:], len(trace)), ";") + ";"
 }
 
 // closeBpfSafe safely closes a BPF object, handling nil checks and logging errors.

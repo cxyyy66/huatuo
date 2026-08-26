@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !didi
-
 package bpf
 
 import (
@@ -398,9 +396,9 @@ func TestDefaultBPF_DumpPerCPUMap(t *testing.T) {
 //
 // Covered functions:
 // - Attach() error
-// - attachTracepoint(program *loadedProgram, system, symbol string) error
-// - attachKprobe(program *loadedProgram, symbol string, isRetprobe bool) error
-// - attachRawTracepoint(program *loadedProgram, symbol string) error
+// - attachTracepoint(opts tracepointAttachOptions) error
+// - attachKprobe(opts kprobeAttachOptions) error
+// - attachRawTracepoint(opts rawTracepointAttachOptions) error
 func TestDefaultBPF_Attach(t *testing.T) {
 	b := loadMinimalBpfFromBytes(t)
 
@@ -436,6 +434,8 @@ func TestDefaultBPF_AttachWithOptions_SpecTypes(t *testing.T) {
 			SamplePeriod uint64
 			SampleFreq   uint64
 			CPUIDs       []int
+			Type         uint32
+			Config       uint64
 		}
 		wantErr bool
 	}{
@@ -465,7 +465,13 @@ func TestDefaultBPF_AttachWithOptions_SpecTypes(t *testing.T) {
 				SamplePeriod uint64
 				SampleFreq   uint64
 				CPUIDs       []int
-			}{SampleFreq: 99},
+				Type         uint32
+				Config       uint64
+			}{
+				SampleFreq: 99,
+				Type:       unix.PERF_TYPE_SOFTWARE,
+				Config:     unix.PERF_COUNT_SW_CPU_CLOCK,
+			},
 			wantErr: false,
 		},
 		{
@@ -476,6 +482,8 @@ func TestDefaultBPF_AttachWithOptions_SpecTypes(t *testing.T) {
 				SamplePeriod uint64
 				SampleFreq   uint64
 				CPUIDs       []int
+				Type         uint32
+				Config       uint64
 			}{SampleFreq: 0},
 			wantErr: true,
 		},

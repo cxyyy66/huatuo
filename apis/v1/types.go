@@ -19,6 +19,11 @@ import (
 	"time"
 )
 
+// Response is the successful API response envelope.
+type Response[T any] struct {
+	Data T `json:"data"`
+}
+
 // CreateProfilingJobRequest represents a request to create a profiling job.
 type CreateProfilingJobRequest struct {
 	ProfilingType   string `json:"type"`              // cpu or memory
@@ -127,6 +132,7 @@ type ProfilingJobListResponse struct {
 type ProfilingCapabilities struct {
 	Types                      []string            `json:"types"`                        // supported profiling types
 	CPULanguages               []string            `json:"cpu_languages"`                // languages supported by CPU profiling
+	CPUModes                   map[string][]string `json:"cpu_modes"`                    // supported CPU modes by language
 	MemoryLanguages            []string            `json:"memory_languages"`             // languages supported by memory profiling
 	MemoryModes                map[string][]string `json:"memory_modes"`                 // supported modes by language
 	AggregationIntervalSeconds int                 `json:"aggregation_interval_seconds"` // server aggregation interval

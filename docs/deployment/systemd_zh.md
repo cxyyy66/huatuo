@@ -7,6 +7,30 @@ date: 2026-01-11
 weight: 3
 ---
 
+## 生产环境资源限制
+
+`huatuo-bamai.service` 由 systemd 负责资源限制和进程生命周期。服务单元默认不启用 Huatuo 自身 cgroup，使用以下原生配置：
+
+```ini
+[Service]
+CPUAccounting=yes
+CPUQuota=200%
+MemoryAccounting=yes
+MemoryMax=2G
+TasksAccounting=yes
+TasksMax=32768
+KillMode=control-group
+```
+
+`CPUQuota=200%` 表示最多使用 2 个 CPU 核，`MemoryMax=2G` 限制服务内存。根据主机规格、采集任务和资源峰值调整这些值。systemd 部署不要传入 `--enable-cgroup`，否则进程会脱离 service cgroup。
+
+服务启动后，检查状态和 cgroup：
+
+```bash
+systemctl status huatuo-bamai --no-pager
+systemd-cgls --unit huatuo-bamai.service
+```
+
 ## 二进制
 
 HUATUO Release 提供 amd64 和 arm64 的 Linux 静态 tar 包。tar 包包含 `huatuo-bamai` 和 `huatuo-apiserver` 二进制文件、配置文件和 BPF 对象。
@@ -66,6 +90,8 @@ sudo wget -O /etc/systemd/system/huatuo-apiserver.service "https://raw.githubuse
 
 根据实际部署环境编辑 `/opt/huatuo-bamai/conf/huatuo-bamai.conf` 和 `/opt/huatuo-bamai/conf/huatuo-apiserver.conf`。详细配置项说明请参见 [`huatuo-bamai` 配置](/docs/configuration/huatuo-bamai-configuration_zh.md) 和 [`huatuo-apiserver` 配置](/docs/configuration/huatuo-apiserver-configuration_zh.md)。
 
+根据 service unit 中的 `CPUQuota`、`MemoryMax` 和 `TasksMax` 设置资源上限。只有直接运行且传入 `--enable-cgroup` 时才配置 `[Runtime]`。
+
 ### 5. 注册 HUATUO 服务
 
 重新加载 systemd 配置：
@@ -119,6 +145,8 @@ sudo dnf install ./huatuo-bamai-2.1.0-2.oc9.aarch64.rpm
 ### 3. 修改配置
 
 根据实际部署环境编辑 `/etc/huatuo-bamai/huatuo-bamai.conf`。详细配置项说明请参见 [`huatuo-bamai` 配置](/docs/configuration/huatuo-bamai-configuration_zh.md)。
+
+根据 service unit 中的 `CPUQuota`、`MemoryMax` 和 `TasksMax` 设置资源上限。只有直接运行且传入 `--enable-cgroup` 时才配置 `[Runtime]`。
 
 ### 4. 启动 HUATUO 服务
 

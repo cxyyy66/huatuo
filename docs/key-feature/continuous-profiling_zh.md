@@ -150,6 +150,10 @@ $ curl -s -u elastic:huatuo-bamai "http://localhost:9200/huatuo_bamai/_count" \
 
 huatuo-apiserver 通过 `/v1/profiles` 提供服务化的持续性能剖析能力。客户端可以创建 CPU 或内存剖析任务，查询任务状态和结果，或者停止、删除任务。任务由 huatuo-apiserver 调度到指定节点的 HUATUO Agent，采集结果可通过返回的 Grafana 链接或原始数据接口查看。
 
+持续性能剖析使用 Elasticsearch 存储剖析数据。仅在配置 Elasticsearch profile
+存储后，huatuo-apiserver 才启用该能力。未配置时，所有 `/v1/profiles` 请求
+均返回 HTTP 503，错误码为 `profiling_disabled`。
+
 ### 1. 请求约定
 
 huatuo-apiserver 默认监听 `:12740`。以下示例使用环境变量统一设置服务地址和 Bearer token：
@@ -166,19 +170,30 @@ Authorization: Bearer REPLACE_WITH_RANDOM_HEX
 ```
 
 非管理员用户需要配置 `/v1/profiles` 和 `/v1/profiles/**` 权限。权限可带
-HTTP 方法前缀，例如 `GET /v1/profiles/**`。接口使用统一 JSON 响应格式：
+HTTP 方法前缀，例如 `GET /v1/profiles/**`。成功响应仅包含 `data`：
 
 ```json
 {
-  "code": 0,
-  "message": "success",
   "data": {}
 }
 ```
 
+错误响应包含稳定错误码和可读消息：
+
+```json
+{
+  "error": {
+    "code": "profiling_disabled",
+    "message": "profiling is disabled: configure profile storage to enable it"
+  }
+}
+```
+
+客户端应根据 `error.code` 分支处理，不应解析 `error.message`。
+
 ### 2. 查询剖析能力
 
-创建任务前，建议先查询服务端支持的剖析类型、语言、内存模式和运行参数：
+创建任务前，建议先查询服务端支持的剖析类型、语言、CPU 模式、内存模式和运行参数：
 
 ```bash
 curl -sS \
@@ -192,12 +207,14 @@ curl -sS \
 | --- | --- |
 | `types` | 支持的剖析类型：`cpu`、`memory` |
 | `cpu_languages` | CPU 剖析支持的语言 |
+| `cpu_modes` | 按语言分组的 CPU 剖析模式 |
 | `memory_languages` | 内存剖析支持的语言 |
 | `memory_modes` | 按语言分组的内存剖析模式；列表值可直接用于创建任务 |
 | `aggregation_interval_seconds` | 服务端采集数据的聚合周期 |
 | `max_concurrent_profilers` | profiler 进程的最大并发数；`0` 表示不限制 |
 
-当前 CPU 剖析支持 `c`、`c++`、`go`、`java` 和 `python`。内存剖析支持以下组合：
+当前 `c`、`c++` 和 `go` CPU 剖析支持 `oncpu`、`offcpu`，`java` 和
+`python` 仅支持 `oncpu`。内存剖析支持以下组合：
 
 | 语言 | `memory_mode` | 说明 |
 | --- | --- | --- |
@@ -261,8 +278,6 @@ curl -sS -i \
 
 ```json
 {
-  "code": 0,
-  "message": "success",
   "data": {
     "id": "<profile-job-id>"
   }
@@ -387,7 +402,7 @@ curl -sS -i \
 
 `profiler` 是 HUATUO 提供的独立性能剖析命令行工具。它可以直接对宿主机进程或容器内进程采样，不依赖 huatuo-apiserver、Elasticsearch 或 Grafana。工具支持 C、C++、Go、Java 和 Python 进程，并将调用栈输出为折叠栈或 SVG 火焰图。
 
-C、C++ 和 Go 使用基于 eBPF 的原生采集器，可观测 CPU、虚拟内存分配、物理内存分配和物理内存驻留。Java 通过 async-profiler 观测 CPU、对象分配和存活对象；Python 通过 py-spy 观测 CPU。采集结果适合用于热点函数定位、内存增长归因、容器内进程分析和性能问题现场留存。
+C、C++ 和 Go 使用基于 eBPF 的原生采集器，可观测 on-CPU、off-CPU 阻塞与调度延迟、虚拟内存分配、物理内存分配和物理内存驻留。Java 通过 async-profiler 观测 CPU、对象分配和存活对象；Python 通过 py-spy 观测 CPU。采集结果适合用于热点函数定位、内存增长归因、容器内进程分析和性能问题现场留存。
 
 本节以下介绍 `_output/bin/profiler` 的独立使用方式。服务化的持续 Profiling 使用方式见上方 Profiles API。
 
@@ -471,7 +486,12 @@ sudo _output/bin/profiler \
 | 参数 | 默认值 | 适用范围 | 说明 |
 | --- | --- | --- | --- |
 | `--memory-mode` | 无 | 原生内存、Java 内存 | 内存观测维度；使用 `--type memory` 时必填 |
-| `--cpuid` | 全部 CPU | 原生 CPU | CPU 列表或范围，例如 `1,3,5-10` |
+| `--cpuid` | 全部 CPU | 原生 CPU | CPU 列表或范围；off-CPU 样本按任务切出时所在 CPU 过滤 |
+| `--cpu-mode` | `oncpu` | 原生 CPU | `oncpu` 按频率采样，`offcpu` 归因阻塞与可运行调度延迟 |
+| `--require-hardware-pmu` | `false` | 原生 on-CPU | 强制使用硬件 PMU 采样；不可用时失败，不回退软件 CPU clock |
+| `--offcpu-phase` | `all` | 原生 off-CPU | 累计 `all`、`blocked` 或 `runqueue` 时间 |
+| `--offcpu-min-duration-us` | `1000` | 原生 off-CPU | 丢弃持续时间小于该微秒数的阶段 |
+| `--offcpu-stats` | `false` | 原生 off-CPU | 收集 BPF 诊断统计；错误和清理路径会产生额外开销 |
 | `--thread-group` | `false` | 原生 | 同时采集目标 PID 所在线程组中的其他线程 |
 | `--physical-memory-probability` | `100` | 原生物理内存 | 物理内存事件采样概率，范围为 1～100 |
 | `--log-bpf-debug` | `false` | 原生 | 输出 BPF 调试事件，常规采集不建议启用 |
@@ -503,6 +523,10 @@ sudo _output/bin/profiler \
 
 如需包含同一进程的工作线程，增加 `--thread-group`。如需限定 CPU，增加 `--cpuid 2,4-7`。原生 CPU 也支持容器和宿主机级采样：
 
+原生 on-CPU 采集优先使用硬件 CPU cycle event；硬件 PMU 不可用时回退软件
+CPU clock。两种采样源下 `--freq` 均表示每秒采样次数。若软件时钟回退会掩盖
+IRQ 关闭期间的 CPU 时间，可指定 `--require-hardware-pmu`。
+
 ```bash
 # 采集指定容器
 sudo _output/bin/profiler \
@@ -516,6 +540,20 @@ sudo _output/bin/profiler \
   --duration 30 --aggr-interval 10 \
   --output-format flamegraph --output-path ./profiles/host
 ```
+
+如需把线程离开 CPU 的时间归因到触发切出的调用路径，使用 off-CPU 模式：
+
+```bash
+sudo _output/bin/profiler \
+  --type cpu --language go --pid 12345 --thread-group \
+  --cpu-mode offcpu --offcpu-phase all \
+  --cpuid 2,4-7 \
+  --offcpu-min-duration-us 1000 \
+  --duration 30 --aggr-interval 10 \
+  --output-format flamegraph --output-path ./profiles/go-offcpu
+```
+
+off-CPU 是事件驱动采集，因此不使用 `--freq`。指定 `--cpuid` 时，仅记录任务从目标 CPU 切出后开始的区间；后续在其他 CPU 唤醒或切入不会改变该归属。火焰图直接以纳秒为数值，并增加 `off-CPU blocked`、`scheduling delay (preempted)`、`scheduling delay (yielded)` 等根节点。`all` 阶段同时累计阻塞与 runqueue 等待时间，但仍按这些根节点分开显示。采集端使用单一稳定的 BPF stack map，避免长时间睡眠跨越多轮读取后被错误解析到另一代栈。
 
 原生内存支持以下维度：
 
@@ -629,6 +667,9 @@ main;handleRequest;writeResponse 172
 # 原生 CPU
 sudo ./integration/run.sh test_profiler_native_cpu.sh
 
+# 原生 off-CPU 阻塞与调度延迟
+sudo ./integration/run.sh test_profiler_native_cpu_offcpu.sh
+
 # 原生虚拟内存与物理内存
 sudo ./integration/run.sh test_profiler_native_mem_virtual_alloc.sh
 sudo ./integration/run.sh test_profiler_native_mem_physical_usage.sh
@@ -645,7 +686,7 @@ sudo ./integration/run.sh test_profiler_python_cpu_multi_pid.sh
 
 ## ⚙️ 功能原理介绍
 
-`profiler` 先根据语言和观测类型选择采集器。原生 CPU 采集器将 eBPF 程序挂载到 perf event，原生内存采集器通过内核事件记录分配与释放路径；Java 和 Python 采集器分别启动 async-profiler 和 py-spy 子进程。采集记录进入统一聚合流水线，按调用栈合并计数，最后写入本地文件或上传远端存储。
+`profiler` 先根据语言和观测类型选择采集器。原生 on-CPU 采集器将 eBPF 程序挂载到 perf event；off-CPU 模式挂载调度切换、唤醒、退出和任务释放 tracepoint；原生内存采集器通过内核事件记录分配与释放路径；Java 和 Python 采集器分别启动 async-profiler 和 py-spy 子进程。采集记录进入统一聚合流水线，按调用栈合并计数，最后写入本地文件或上传远端存储。
 
 ```mermaid
 flowchart LR

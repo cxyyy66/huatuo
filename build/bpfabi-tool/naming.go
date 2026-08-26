@@ -20,24 +20,27 @@ import (
 )
 
 var initialisms = map[string]string{
-	"bpf":  "BPF",
-	"cpu":  "CPU",
-	"css":  "CSS",
-	"id":   "ID",
-	"io":   "IO",
-	"ip":   "IP",
-	"lacp": "LACP",
-	"n":    "N",
-	"ns":   "NS",
-	"oom":  "OOM",
-	"pid":  "PID",
-	"ras":  "RAS",
-	"rx":   "RX",
-	"skb":  "SKB",
-	"tcp":  "TCP",
-	"tgid": "TGID",
-	"tid":  "TID",
-	"tx":   "TX",
+	"bpf":    "BPF",
+	"cpu":    "CPU",
+	"css":    "CSS",
+	"id":     "ID",
+	"io":     "IO",
+	"ip":     "IP",
+	"lacp":   "LACP",
+	"n":      "N",
+	"netns":  "NetNamespace",
+	"ns":     "NS",
+	"offcpu": "OffCPU",
+	"oncpu":  "OnCPU",
+	"oom":    "OOM",
+	"pid":    "PID",
+	"ras":    "RAS",
+	"rx":     "RX",
+	"skb":    "SKB",
+	"tcp":    "TCP",
+	"tgid":   "TGID",
+	"tid":    "TID",
+	"tx":     "TX",
 }
 
 func goName(cName string) string {
@@ -47,6 +50,7 @@ func goName(cName string) string {
 		if part == "" {
 			continue
 		}
+		part = strings.ToLower(part)
 		if initialism, ok := initialisms[part]; ok {
 			b.WriteString(initialism)
 			continue

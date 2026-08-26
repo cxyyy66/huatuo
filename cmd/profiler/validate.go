@@ -270,6 +270,38 @@ func validateProfilerFlagCompatibility(ctx *cli.Context, lang profiling.Language
 	native := implementation == profiling.ImplementationNative
 	nativeCPU := native && typ == profiling.TypeCPU
 	nativeMemory := native && typ == profiling.TypeMemory
+	cpuMode, err := profiling.ParseCPUMode(ctx.String("cpu-mode"))
+	if err != nil {
+		return err
+	}
+	if _, err := profiling.ParseOffCPUPhase(ctx.String("offcpu-phase")); err != nil {
+		return err
+	}
+	offCPU := nativeCPU && cpuMode == profiling.CPUModeOffCPU
+
+	if cpuMode == profiling.CPUModeOffCPU && !nativeCPU {
+		return fmt.Errorf("--cpu-mode=offcpu is supported only by native CPU profiling")
+	}
+	if ctx.IsSet("cpu-mode") && typ != profiling.TypeCPU {
+		return fmt.Errorf("--cpu-mode is valid only when --type=cpu")
+	}
+	if ctx.IsSet("offcpu-phase") && !offCPU {
+		return fmt.Errorf("--offcpu-phase requires native CPU profiling with --cpu-mode=offcpu")
+	}
+	if ctx.IsSet("offcpu-min-duration-us") && !offCPU {
+		return fmt.Errorf("--offcpu-min-duration-us requires native CPU profiling with --cpu-mode=offcpu")
+	}
+	if ctx.Bool("offcpu-stats") && !offCPU {
+		return fmt.Errorf("--offcpu-stats requires native CPU profiling with --cpu-mode=offcpu")
+	}
+	if offCPU {
+		if ctx.IsSet("freq") {
+			return fmt.Errorf("--freq is not used with --cpu-mode=offcpu")
+		}
+	}
+	if ctx.Bool("require-hardware-pmu") && (!nativeCPU || offCPU) {
+		return fmt.Errorf("--require-hardware-pmu requires native CPU profiling with --cpu-mode=oncpu")
+	}
 
 	if lang == profiling.LanguageJava && typ == profiling.TypeCPU && ctx.Int("freq") > 1000 {
 		return fmt.Errorf("Java profiler frequency must not exceed 1000 samples per second")

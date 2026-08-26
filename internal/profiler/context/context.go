@@ -46,6 +46,7 @@ type ProfilerContext struct {
 	AggrInterval         int
 	IsOneShotAgg         bool
 	CPUIDs               []int
+	RequireHardwarePMU   bool
 
 	ServerAddress             string
 	OutputFormat              output.OutputFormat
@@ -58,6 +59,10 @@ type ProfilerContext struct {
 	ToolPath                  string
 	LogBpfDebug               bool
 	MemoryMode                profiling.MemoryMode
+	CPUMode                   profiling.CPUMode
+	OffCPUPhase               profiling.OffCPUPhase
+	OffCPUMinDurationUS       uint64
+	OffCPUStatsEnabled        bool
 	PhysicalMemoryProbability uint
 
 	TracerID string
@@ -144,6 +149,22 @@ func NewProfilerContext(cliCtx *cli.Context, logBuf *bytes.Buffer) (*ProfilerCon
 			return nil, err
 		}
 	}
+	cpuModeValue := cliCtx.String("cpu-mode")
+	if cpuModeValue == "" {
+		cpuModeValue = string(profiling.CPUModeOnCPU)
+	}
+	cpuMode, err := profiling.ParseCPUMode(cpuModeValue)
+	if err != nil {
+		return nil, err
+	}
+	offCPUPhaseValue := cliCtx.String("offcpu-phase")
+	if offCPUPhaseValue == "" {
+		offCPUPhaseValue = string(profiling.OffCPUPhaseAll)
+	}
+	offCPUPhase, err := profiling.ParseOffCPUPhase(offCPUPhaseValue)
+	if err != nil {
+		return nil, err
+	}
 	profilerContext := &ProfilerContext{
 		Ctx:    ctx,
 		Cancel: cancelProfiler,
@@ -155,6 +176,7 @@ func NewProfilerContext(cliCtx *cli.Context, logBuf *bytes.Buffer) (*ProfilerCon
 		MaxProfilerProcesses: cliCtx.Int("max-concurrent-procs"),
 		AggrInterval:         cliCtx.Int("aggr-interval"),
 		CPUIDs:               cpuIDs,
+		RequireHardwarePMU:   cliCtx.Bool("require-hardware-pmu"),
 
 		ServerAddress:             cliCtx.String("huatuo-api-address"),
 		Type:                      typ,
@@ -167,6 +189,10 @@ func NewProfilerContext(cliCtx *cli.Context, logBuf *bytes.Buffer) (*ProfilerCon
 		OutputPath:                cliCtx.String("output-path"),
 		OutputFormat:              outputFormat,
 		MemoryMode:                mode,
+		CPUMode:                   cpuMode,
+		OffCPUPhase:               offCPUPhase,
+		OffCPUMinDurationUS:       cliCtx.Uint64("offcpu-min-duration-us"),
+		OffCPUStatsEnabled:        cliCtx.Bool("offcpu-stats"),
 		PhysicalMemoryProbability: cliCtx.Uint("physical-memory-probability"),
 
 		TracerID: cliCtx.String("tracer-id"),

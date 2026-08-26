@@ -36,6 +36,10 @@ skip() {
 
 # --------------------------------- utils ------------------------------------
 
+require_python3() {
+	command -v python3 > /dev/null 2>&1 || fatal "python3 not found"
+}
+
 assert_eq() {
 	local actual=$1 expect=$2 msg=${3:-""}
 	[[ "$actual" == "$expect" ]] && return 0
@@ -121,7 +125,7 @@ profiler_ready() {
 
 kprobe_available() {
 	local symbol=$1
-	local file candidate
+	local file
 	local files=(
 		"/sys/kernel/tracing/available_filter_functions"
 		"/sys/kernel/debug/tracing/available_filter_functions"
@@ -129,9 +133,20 @@ kprobe_available() {
 
 	for file in "${files[@]}"; do
 		[[ -r "${file}" ]] || continue
-		for candidate in "${symbol}" "__x64_${symbol}"; do
-			awk -v sym="${candidate}" '$1 == sym { found = 1; exit } END { exit !found }' "${file}" && return 0
-		done
+		awk -v sym="${symbol}" '$1 == sym { found = 1; exit } END { exit !found }' "${file}" && return 0
+	done
+
+	return 1
+}
+
+# Tracefs may be mounted independently or exposed through debugfs.
+tracepoint_available() {
+	local group=$1 name=$2 root
+
+	for root in \
+		/sys/kernel/tracing \
+		/sys/kernel/debug/tracing; do
+		[[ -e "${root}/events/${group}/${name}/id" ]] && return 0
 	done
 
 	return 1
@@ -168,18 +183,23 @@ compile_bpf_fixture() {
 
 # ------------------------- bpf tool test scaffolding -------------------------
 
+# bpf_tool_setup <binary-name> [bpf-name] [work-prefix]
 bpf_tool_setup() {
-	local name=$1
-	TOOL_BIN="${ROOT_DIR}/_output/bin/${name}"
-	TOOL_BPF="${ROOT_DIR}/_output/bpf/${name}.o"
+	[[ $# -ge 1 ]] || fatal "bpf_tool_setup requires a binary name"
+
+	local binary_name=$1
+	local bpf_name=${2:-${binary_name}}
+	local work_prefix=${3:-${binary_name}}
+	TOOL_BIN="${ROOT_DIR}/_output/bin/${binary_name}"
+	TOOL_BPF="${ROOT_DIR}/_output/bpf/${bpf_name}.o"
 
 	[[ $EUID -eq 0 ]] || fatal "requires root (BPF requires CAP_BPF/CAP_SYS_ADMIN)"
-	[[ -x ${TOOL_BIN} ]] || fatal "missing ${name} binary: ${TOOL_BIN}"
-	[[ -r ${TOOL_BPF} ]] || fatal "missing ${name} bpf object: ${TOOL_BPF}"
+	[[ -x ${TOOL_BIN} ]] || fatal "missing ${binary_name} binary: ${TOOL_BIN}"
+	[[ -r ${TOOL_BPF} ]] || fatal "missing ${bpf_name} bpf object: ${TOOL_BPF}"
 
-	TOOL_WORK_DIR=$(mktemp -d "${HUATUO_BAMAI_TEST_TMPDIR}/${name}.XXXXXX")
-	TOOL_OUT="${TOOL_WORK_DIR}/${name}.out"
-	TOOL_ERR="${TOOL_WORK_DIR}/${name}.err"
+	TOOL_WORK_DIR=$(mktemp -d "${HUATUO_BAMAI_TEST_TMPDIR}/${work_prefix}.XXXXXX")
+	TOOL_OUT="${TOOL_WORK_DIR}/${binary_name}.out"
+	TOOL_ERR="${TOOL_WORK_DIR}/${binary_name}.err"
 }
 
 # Print non-empty text files; empty and binary files add no useful diagnostics.
@@ -210,7 +230,7 @@ stop_by_pid() {
 	kill -KILL "${pid}" 2> /dev/null || true
 }
 
-# --------------------------- container detection ----------------------------
+# ------------------------- virtualization detection -------------------------
 
 # Returns 0 when running inside a container.
 # Method 1: overlay/btrfs rootfs — container runtimes mount an overlay or
@@ -229,6 +249,30 @@ is_container() {
 	fi
 
 	return 1
+}
+
+# Returns 0 when running inside a virtual machine.
+is_virtual_machine() {
+	if command -v systemd-detect-virt > /dev/null 2>&1; then
+		systemd-detect-virt --vm --quiet
+		return $?
+	fi
+
+	[[ -r /sys/hypervisor/type ]] && return 0
+	grep -qiE '(^|[[:space:]])hypervisor([[:space:]]|$)' /proc/cpuinfo && return 0
+
+	local dmi="" path
+	for path in \
+		/sys/class/dmi/id/sys_vendor \
+		/sys/class/dmi/id/product_name \
+		/sys/class/dmi/id/board_vendor; do
+		[[ -r "${path}" ]] || continue
+		dmi+=" $(< "${path}")"
+	done
+
+	grep -qiE \
+		'kvm|qemu|vmware|virtualbox|virtual machine|xen|bochs|bhyve|parallels|amazon ec2|google compute engine|openstack|alibaba cloud|nutanix|digitalocean' \
+		<<< "${dmi}"
 }
 
 # ----------------------------- huatuo-bamai ----------------------------------
@@ -408,8 +452,6 @@ huatuo_bamai_await_metrics() {
 }
 
 # check_metrics <desc> <present_pattern>... [-- <absent_pattern>...]
-# Single-pass metric assertion: verifies present patterns exist and absent
-# patterns do not, using at most 2 grep invocations regardless of pattern count.
 check_metrics() {
 	local desc=$1
 	shift
@@ -436,16 +478,10 @@ check_metrics() {
 	fi
 
 	if [[ ${#present[@]} -gt 0 ]]; then
-		local present_re
-		present_re=$(
-			IFS='|'
-			echo "${present[*]}"
-		)
-		local matches
-		matches=$(grep -oE "${prefix}(${present_re})" "$metrics_file" || true)
 		local pat
 		for pat in "${present[@]}"; do
-			echo "$matches" | grep -q "$pat" || fatal "${desc}: expected present but not found: ${pat}"
+			grep -qE "${prefix}(${pat})" "$metrics_file" \
+				|| fatal "${desc}: expected present but not found: ${pat}"
 		done
 	fi
 }

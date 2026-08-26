@@ -23,16 +23,12 @@ The configuration file uses **TOML** format and includes multiple sections such 
 # - BlackList
 # Global blacklist for tracing and metrics.
 #
-BlackList = ["netdev_hw", "metax_gpu", "ascend_npu", "diskio"]
+BlackList = ["netdev_hw", "metax_gpu", "ascend_npu", "diskio", "tcp_retransmit"]
 ```
 
 - **BlackList**: Global blacklist for tracing and metrics.
 
-  Modules or hardware to exclude from tracing and metric collection. Default:
-  `["netdev_hw", "metax_gpu", "ascend_npu", "diskio"]`, which disables
-  tracing and metrics for the network device hardware layer, Metax GPU,
-  Ascend NPU, and procfs-based disk I/O statistics. Remove `diskio` to enable
-  disk I/O metrics. Supports arrays; extend as needed.
+  Modules or hardware to exclude from tracing and metric collection. The default is `["netdev_hw", "metax_gpu", "ascend_npu", "diskio", "tcp_retransmit"]`, which disables tracing and metrics for the network device hardware layer, Metax GPU, Ascend NPU, procfs-based disk I/O statistics, and TCP retransmission tracing. Remove `diskio` to enable disk I/O metrics or `tcp_retransmit` to enable TCP retransmission tracing and its drop-correlation cache. Supports arrays; extend as needed.
 
 ### 3. Logging
 
@@ -63,6 +59,8 @@ BlackList = ["netdev_hw", "metax_gpu", "ascend_npu", "diskio"]
   **Description**: In containerized deployments, configure a specific path and integrate with a log collection system for persistence.
 
 ### 4. Runtime Resource Limits
+
+Huatuo does not create its own cgroup by default. This section applies only when `--enable-cgroup` is passed; Kubernetes and systemd deployments should use their native resource controls.
 
 ```bash
 # Runtime limits for the huatuo-bamai process.
@@ -645,31 +643,31 @@ This module detects sudden memory usage spikes on the host and automatically cap
 
 ### 8. Event Tracing
 
-This section is responsible for capturing key kernel events and monitoring latency, including softirq, memory reclaim, network receive latency, network device events, and packet drop monitoring. It is the core module for kernel-level anomaly context collection in HUATUO.
+This section captures key kernel events and latency, including scheduler tick intervals, memory reclaim, network receive latency, network device events, and packet drops. It is the core module for kernel-level anomaly context collection in HUATUO.
 
-#### 8.1 Softirq Disable Tracing
+#### 8.1 Scheduler Tick Interval Tracing
 
 ```bash
 # linux kernel events capturing configuration
 [EventTracing]
-	# softirq
+	# scheduler tick
 	#
-	# Trace softirq disabled events in the Linux kernel.
+	# Trace long scheduler tick intervals.
 	#
-	# - DisabledThreshold
-	# When the disable duration of softirq exceeds the threshold, huatuo-bamai
+	# - IntervalThreshold
+	# When the scheduler tick interval reaches the threshold, huatuo-bamai
 	# will collect kernel context.
 	# Default: 10000000 in nanoseconds, 10ms
 	#
-	[EventTracing.Softirq]
-		# DisabledThreshold = 10000000
+	[EventTracing.SchedTick]
+		# IntervalThreshold = 10000000
 ```
 
-- **DisabledThreshold**: Softirq disable duration threshold (nanoseconds).
+- **IntervalThreshold**: Scheduler tick interval threshold, in nanoseconds.
 
-  Default: 10,000,000 ns (10ms). When softirq is disabled longer than this threshold, kernel context is collected.
+  Default: 10,000,000 ns (10ms).
 
-  **Description**: Long softirq disable periods can cause delays in networking, timers, etc. Useful for diagnosing interrupt storms or high-load scenarios.
+  **Description**: The event infers CPU stalls from long scheduler tick intervals. It does not by itself prove that softirqs were disabled.
 
 #### 8.2 Memory Reclaim Blocking Tracing
 
@@ -773,26 +771,64 @@ This section is responsible for capturing key kernel events and monitoring laten
 
 #### 8.5 Packet Drop Monitoring
 
-```bash
-# dropwatch
-#
-# monitor packets dropped events in the Linux kernel.
-#
-# - ExcludedNeighInvalidate
-# Exclude neigh_invalidate drop events.
-# Default: true
-#
+```toml
 [EventTracing.Dropwatch]
-	# ExcludedNeighInvalidate = true
+    # tcpdump-style filter expression, forwarded to dropwatch --filter.
+    # Default: "tcp"
+    Filter = "tcp"
+
+    # Forwarded to dropwatch --max-events-per-second.
+    # Default: 100; 0 disables rate limiting.
+    MaxEventsPerSecond = 100
+
+    # Reserved configuration field. It is not currently consumed by the
+    # dropwatch event path and therefore has no filtering effect.
+    # Default: []
+    ExcludeContainers = []
 ```
 
-- **ExcludedNeighInvalidate**: Whether to exclude packet drops caused by neigh_invalidate.
+- **Filter**: tcpdump-style packet filter passed to `dropwatch --filter` and applied by the BPF program before events are emitted.
 
-  Default: true.
+  Default: `"tcp"`.
 
-  **Description**: Neighbor table related drops are usually normal behavior; excluding them reduces false positives.
+- **MaxEventsPerSecond**: Maximum number of dropwatch events emitted by BPF per second.
 
-#### 8.6 Hardware Error Event Tracing (EventTracing.Ras)
+  Default: `100`. Set to `0` to disable rate limiting.
+
+- **ExcludeContainers**: Reserved container-exclusion list.
+
+  Default: `[]`. The field exists in the configuration schema, but the current dropwatch event path does not read or forward it, so configuring it has no effect. Use `EventTracing.IssuesList` for operator-defined dropwatch call-stack suppression.
+
+#### 8.6 TCP Retransmission Tracing ([EventTracing.TCPRetransmit])
+
+```bash
+[EventTracing.TCPRetransmit]
+    # Forwarded to tcpshark --filter.
+    # Applies only to tcp_retransmit_skb events.
+    # Default: ""
+    Filter = ""
+
+    # Forwarded as tcpshark --enable-tlp. Default: false.
+    EnableTLP = false
+
+    # Forwarded as tcpshark --max-events-per-second.
+    # Default: 100; 0 disables rate limiting.
+    MaxEventsPerSecond = 100
+```
+
+- **Filter**: tcpdump-style filter expression passed to `tcpshark --filter`.
+
+  Default: empty string. It applies only to `tcp_retransmit_skb` events.
+
+- **EnableTLP**: Whether to collect `tcp_send_loss_probe` events.
+
+  Default: false.
+
+- **MaxEventsPerSecond**: Maximum TCP retransmission events emitted by BPF per second.
+
+  Default: 100. Set to 0 for unlimited output. When the limit is exceeded, `tcpshark` logs `rate limit hit`.
+
+#### 8.7 Hardware Error Event Tracing (EventTracing.Ras)
 
 ```bash
 # ras
@@ -828,11 +864,11 @@ This section is responsible for capturing key kernel events and monitoring laten
     IssuesList = []
 ```
 
-- **IssuesList**: Known issue filter. Same format and usage as AutoTracing `IssuesList`. Matches event titles against regex patterns, labeling them with the issue name. Default `[]`.
+- **IssuesList**: Known-issue suppression rules in the form `[["name", "regex"], ...]`. Default `[]`.
 
-  Example: `IssuesList = [["known_issue1", "comm=ignored_process"]]`
+  For `net_rx_latency`, each regex is matched against the generated event title. For `dropwatch`, it is matched against the newline-joined kernel call stack. A match causes the event to be discarded; the configured name identifies the rule but is not added to the saved event.
 
-**Note**: Only supports `net_rx_latency` tracing of known issues filtering, other events are not supported.
+  Example: `IssuesList = [["ignored_process", "comm=ignored_process"], ["neighbor_cleanup", "neigh_invalidate/"]]`
 
 ### 9. Metric Collector
 
@@ -1039,7 +1075,7 @@ huatuo-bamai --region <region> [options]
 | `--region` | Deployment region (required) | - |
 | `--disable-kubelet` | Disable kubelet Pod fetching | `false` |
 | `--disable-storage` | Disable storage backends | `false` |
-| `--disable-cgroup` | Disable self cgroup resource limits | `false` |
+| `--enable-cgroup` | Enable self cgroup resource limits (disabled by default) | `false` |
 | `--disable-tracing` | Disable specified tracing modules (may be repeated) | - |
 | `--log-debug` | Force log level to Debug | `false` |
 | `--dry-run` | Load-only test; exit gracefully after startup | `false` |
@@ -1060,12 +1096,13 @@ Specific rules:
 
 2. **Tracing blacklist**: `--disable-tracing` is merged with the configuration file `BlackList` (they complement each other rather than override).
 
-3. **Other boolean switches** (`--disable-kubelet`, `--disable-storage`, `--disable-cgroup`): When explicitly set on the command line, they override the configuration file.
+3. **Other boolean switches** (`--disable-kubelet`, `--disable-storage`): When explicitly set on the command line, they override the configuration file.
 
 ### 13. Best Practices and Important Notes
 
-- **Resource Control**: In production, tune CPU and memory limits under
-  `[Runtime]` to avoid impacting business containers.
+- **Resource Control**: Kubernetes uses Pod resources and systemd uses service limits.
+  Use `--enable-cgroup` and `[Runtime]` only for direct execution without an
+  external manager.
 - **Storage Choice**: For small-scale deployments, prefer [Storage.LocalFile] for local troubleshooting. For large clusters, configure Elasticsearch for centralized storage and querying.
 - **AutoTracing Tuning**: Adjust thresholds based on workload characteristics. Thresholds that are too low cause frequent triggering; thresholds that are too high may miss issues. Validate gradually in a test environment.
 - **Security**: Use strong passwords for ES configuration and consider enabling HTTPS. Avoid hard-coding sensitive information in the configuration file.

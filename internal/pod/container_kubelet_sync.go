@@ -1,4 +1,4 @@
-// Copyright 2025 The HuaTuo Authors
+// Copyright 2025, 2026 The HuaTuo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -192,7 +192,9 @@ func InitManager(ctx *ManagerCtx) error {
 				if err := kubeletPodListPortCacheUpdate(ctx); err == nil {
 					log.Infof("kubelet is running now")
 					_ = kubeletConfigCacheMustUpdate(ctx)
-					_ = containerCgroupCssInit()
+					if err := containerCgroupCssInit(); err != nil {
+						log.Errorf("initialize container cgroup CSS: %v", err)
+					}
 					t.Stop()
 					return
 				}
@@ -387,13 +389,13 @@ func kubeletUpdateContainer(containerID string, container *corev1.Container, con
 	}
 
 	// net namespace
-	nsInode, err := netutil.NetNSInodeByPid(initPid)
+	nsInum, err := netutil.NetNamespaceInumByPID(initPid)
 	if err != nil {
-		return fmt.Errorf("failed to get net namespace inode by pid: %w", err)
+		return fmt.Errorf("failed to get net namespace inum by pid: %w", err)
 	}
 
 	// net namespace cookie (Linux 5.14+; falls back to 0 on older kernels)
-	netCookie, err := netutil.NetNSCookieByPid(initPid)
+	netNamespaceCookie, err := netutil.NetNamespaceCookieByPID(initPid)
 	if err != nil {
 		log.Debugf("failed to get net namespace cookie for pid %d: %v", initPid, err)
 	}
@@ -425,8 +427,8 @@ func kubeletUpdateContainer(containerID string, container *corev1.Container, con
 		Type:               containerType,
 		Qos:                containerQos,
 		IPAddress:          parseContainerIPAddress(pod),
-		NetNamespaceInode:  nsInode,
-		NetNamespaceCookie: netCookie,
+		NetNamespaceInum:   nsInum,
+		NetNamespaceCookie: netNamespaceCookie,
 		InitPid:            initPid,
 		CgroupPath:         cgroupPath,
 		CgroupCss:          css,

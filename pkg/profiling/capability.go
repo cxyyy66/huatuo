@@ -39,17 +39,6 @@ const (
 	LanguagePython  Language = "python"
 )
 
-type MemoryMode string
-
-const (
-	MemoryModeUnknown       MemoryMode = ""
-	MemoryModeObjectAlloc   MemoryMode = "object_alloc"
-	MemoryModeObjectUsage   MemoryMode = "object_usage"
-	MemoryModeVirtualAlloc  MemoryMode = "virtual_alloc"
-	MemoryModePhysicalAlloc MemoryMode = "physical_alloc"
-	MemoryModePhysicalUsage MemoryMode = "physical_usage"
-)
-
 type Implementation string
 
 const (
@@ -63,6 +52,7 @@ type capability struct {
 	Language       Language
 	Implementation Implementation
 	Types          []Type
+	CPUModes       []CPUMode
 	MemoryModes    []MemoryMode
 }
 
@@ -74,12 +64,14 @@ var capabilities = []capability{
 		Language:       LanguageJava,
 		Implementation: ImplementationJava,
 		Types:          []Type{TypeCPU, TypeMemory},
+		CPUModes:       []CPUMode{CPUModeOnCPU},
 		MemoryModes:    []MemoryMode{MemoryModeObjectAlloc, MemoryModeObjectUsage},
 	},
 	{
 		Language:       LanguagePython,
 		Implementation: ImplementationPython,
 		Types:          []Type{TypeCPU},
+		CPUModes:       []CPUMode{CPUModeOnCPU},
 		MemoryModes:    []MemoryMode{},
 	},
 }
@@ -89,6 +81,7 @@ func newNativeCapability(language Language) capability {
 		Language:       language,
 		Implementation: ImplementationNative,
 		Types:          []Type{TypeCPU, TypeMemory},
+		CPUModes:       []CPUMode{CPUModeOnCPU, CPUModeOffCPU},
 		MemoryModes: []MemoryMode{
 			MemoryModeVirtualAlloc,
 			MemoryModePhysicalAlloc,
@@ -102,7 +95,7 @@ func ParseType(value string) (Type, error) {
 	if typ == TypeCPU || typ == TypeMemory {
 		return typ, nil
 	}
-	return TypeUnknown, fmt.Errorf("unsupported profiling type %q (expected: cpu or memory)", value)
+	return TypeUnknown, fmt.Errorf("unsupported profiling type %q", value)
 }
 
 func ParseLanguage(value string) (Language, error) {
@@ -113,16 +106,6 @@ func ParseLanguage(value string) (Language, error) {
 		}
 	}
 	return LanguageUnknown, fmt.Errorf("unsupported language %q", value)
-}
-
-func ParseMemoryMode(value string) (MemoryMode, error) {
-	mode := MemoryMode(value)
-	for _, capability := range capabilities {
-		if slices.Contains(capability.MemoryModes, mode) {
-			return mode, nil
-		}
-	}
-	return MemoryModeUnknown, fmt.Errorf("unsupported memory mode %q", value)
 }
 
 func IsSupported(language Language, typ Type) bool {
@@ -151,6 +134,14 @@ func MemoryModesFor(language Language) []MemoryMode {
 		return []MemoryMode{}
 	}
 	return slices.Clone(capability.MemoryModes)
+}
+
+func CPUModesFor(language Language) []CPUMode {
+	capability, ok := capabilityFor(language)
+	if !ok {
+		return []CPUMode{}
+	}
+	return slices.Clone(capability.CPUModes)
 }
 
 func ImplementationFor(language Language) (Implementation, bool) {

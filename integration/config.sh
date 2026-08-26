@@ -29,7 +29,7 @@ write_include_filter_config() {
 BlackList = ["metax_gpu", "ascend_npu", "softlockup", "ethtool", "netstat_hw", "iolatency", "memory_free", "memory_reclaim", "reschedipi", "softirq", "iotracing"]
 
 [MetricCollector.Vmstat]
-    IncludedOnHost = "thp_split_pmd|thp_split_pud"
+    IncludedOnHost = "pgfault"
     ExcludedOnHost = ""
     IncludedOnContainer = ""
     ExcludedOnContainer = ""
@@ -88,10 +88,35 @@ BlackList = ["metax_gpu", "ascend_npu", "softlockup", "ethtool", "netstat_hw", "
 EOF
 }
 
+# Keep sched_tick tests isolated while allowing each scenario to set its threshold.
+write_sched_tick_config_with_threshold() {
+	local interval_threshold=$1
+
+	cat > "${HUATUO_BAMAI_TEST_TMPDIR}/bamai.conf" << EOF
+BlackList = ["arp", "ascend_npu", "cpu_stat", "cpu_util", "cpuidle", "cpusys", "diskio", "dload", "dropwatch", "hungtask", "iolatency", "iotracing", "loadavg", "memburst", "memory_buddyinfo", "memory_events", "memory_free", "memory_others", "memory_reclaim", "memory_reclaim_events", "memory_vmstat", "metax_gpu", "mountpoint_perm", "net_rx_latency", "netdev", "netdev_bonding_lacp", "netdev_dcb", "netdev_events", "netdev_hw", "netdev_qdisc", "netdev_rdma_link", "netdev_txqueue_timeout", "netstat", "oom", "ras", "runqlat", "sockstat", "softirq", "softlockup", "tcp_memory", "tcp_retransmit"]
+
+[EventTracing.SchedTick]
+    IntervalThreshold = ${interval_threshold}
+
+[Storage.LocalFile]
+    Path = "${HUATUO_BAMAI_TEST_TMPDIR}/events"
+EOF
+}
+
+# Keep the lifecycle test focused on load and attachment.
+write_sched_tick_config() {
+	write_sched_tick_config_with_threshold 60000000000
+}
+
+# Let normal ticks exercise the irqoff reporting path without disabling IRQs.
+write_sched_tick_irqoff_config() {
+	write_sched_tick_config_with_threshold 1
+}
+
 # The cpusys test controls proc/stat and perf through its isolated fixture root.
 write_cpusys_autotracing_config() {
 	cat > "${HUATUO_BAMAI_TEST_TMPDIR}/bamai.conf" << EOF
-BlackList = ["arp", "ascend_npu", "cpu_stat", "cpu_util", "cpuidle", "dload", "dropwatch", "hungtask", "iolatency", "iotracing", "loadavg", "memburst", "memory_buddyinfo", "memory_events", "memory_free", "memory_others", "memory_reclaim", "memory_reclaim_events", "memory_vmstat", "metax_gpu", "mountpoint_perm", "net_rx_latency", "netdev", "netdev_bonding_lacp", "netdev_dcb", "netdev_events", "netdev_hw", "netdev_qdisc", "netdev_rdma_link", "netdev_txqueue_timeout", "netstat", "oom", "ras", "runqlat", "sockstat", "softirq", "softirq_tracing", "softlockup", "tcp_memory", "tracing_status"]
+BlackList = ["arp", "ascend_npu", "cpu_stat", "cpu_util", "cpuidle", "dload", "dropwatch", "hungtask", "iolatency", "iotracing", "loadavg", "memburst", "memory_buddyinfo", "memory_events", "memory_free", "memory_others", "memory_reclaim", "memory_reclaim_events", "memory_vmstat", "metax_gpu", "mountpoint_perm", "net_rx_latency", "netdev", "netdev_bonding_lacp", "netdev_dcb", "netdev_events", "netdev_hw", "netdev_qdisc", "netdev_rdma_link", "netdev_txqueue_timeout", "netstat", "oom", "ras", "runqlat", "sched_tick", "sockstat", "softirq", "softlockup", "tcp_memory", "tracing_status"]
 
 [AutoTracing.CPUSys]
     SysThreshold = 45
@@ -107,7 +132,7 @@ EOF
 # The iotracing test controls proc/diskstats and the toolstream subprocess.
 write_iotracing_autotracing_config() {
 	cat > "${HUATUO_BAMAI_TEST_TMPDIR}/bamai.conf" << EOF
-BlackList = ["arp", "ascend_npu", "cpu_stat", "cpu_util", "cpuidle", "cpusys", "dload", "dropwatch", "hungtask", "iolatency", "loadavg", "memburst", "memory_buddyinfo", "memory_events", "memory_free", "memory_others", "memory_reclaim", "memory_reclaim_events", "memory_vmstat", "metax_gpu", "mountpoint_perm", "net_rx_latency", "netdev", "netdev_bonding_lacp", "netdev_dcb", "netdev_events", "netdev_hw", "netdev_qdisc", "netdev_rdma_link", "netdev_txqueue_timeout", "netstat", "oom", "ras", "runqlat", "sockstat", "softirq", "softirq_tracing", "softlockup", "tcp_memory", "tracing_status"]
+BlackList = ["arp", "ascend_npu", "cpu_stat", "cpu_util", "cpuidle", "cpusys", "dload", "dropwatch", "hungtask", "iolatency", "loadavg", "memburst", "memory_buddyinfo", "memory_events", "memory_free", "memory_others", "memory_reclaim", "memory_reclaim_events", "memory_vmstat", "metax_gpu", "mountpoint_perm", "net_rx_latency", "netdev", "netdev_bonding_lacp", "netdev_dcb", "netdev_events", "netdev_hw", "netdev_qdisc", "netdev_rdma_link", "netdev_txqueue_timeout", "netstat", "oom", "ras", "runqlat", "sched_tick", "sockstat", "softirq", "softlockup", "tcp_memory", "tracing_status"]
 
 [AutoTracing.IOTracing]
     RbpsThreshold = 1000
@@ -139,8 +164,8 @@ write_apiserver_apis_config() {
 EOF
 }
 
-# The caller owns the API port, bearer token, and expected profiling values.
-write_apiserver_profile_capabilities_config() {
+# The caller owns the API port and bearer token.
+write_apiserver_profile_disabled_config() {
 	cat > "${HUATUO_BAMAI_TEST_TMPDIR}/apiserver.conf" << EOF
 [APIServer]
     ListenAddress = "127.0.0.1:${APISERVER_PORT}"
@@ -152,10 +177,6 @@ write_apiserver_profile_capabilities_config() {
     ID = "integration-admin-user"
     BearerToken = "${API_TOKEN}"
     Admin = true
-
-[Profiling]
-    AggregationIntervalSeconds = ${CAPABILITIES_AGGREGATION_INTERVAL_SECONDS}
-    MaxConcurrentProfilerProcesses = ${CAPABILITIES_MAX_CONCURRENT_PROFILERS}
 EOF
 }
 

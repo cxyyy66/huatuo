@@ -11,7 +11,7 @@
 
 char __license[] SEC("license") = "Dual MIT/GPL";
 
-BPF_RATELIMIT_IN_MAP(rate, 1, COMPAT_CPU_NUM * 10000, 0);
+BPF_RATELIMIT(rate, BPF_NSEC_PER_SEC, COMPAT_CPU_NUM * 10000);
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -26,12 +26,12 @@ int kprobe_softlockup(struct pt_regs *ctx)
 	if (PT_REGS_PARM1(ctx) != TAINT_SOFTLOCKUP)
 		return 0;
 
-	if (bpf_ratelimited_in_map(ctx, rate))
+	if (bpf_ratelimited(&rate))
 		return 0;
 
 	struct softlockup_event info = {
 		.cpu = bpf_get_smp_processor_id(),
-		.pid = bpf_get_current_pid_tgid() >> 32,
+		.tgid = bpf_get_current_pid_tgid() >> 32,
 	};
 
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();

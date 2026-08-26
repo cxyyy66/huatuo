@@ -33,10 +33,38 @@ kubectl apply -f -
 
 ### 1.4 部署采集器
 
+下载 DaemonSet 清单：
+
 ```bash
-kubectl apply -f \
+curl -L -o huatuo-daemonset.yaml \
   https://raw.githubusercontent.com/ccfos/huatuo/main/build/huatuo-daemonset.minimal.yaml
 ```
+
+部署到生产环境前，将 `huatuo` 容器的 `resources` 调整为以下初始基线：
+
+```yaml
+resources:
+  limits:
+    cpu: "2"
+    memory: 2Gi
+  requests:
+    cpu: "2"
+    memory: 2Gi
+```
+
+应用修改后的清单：
+
+```bash
+kubectl apply -f ./huatuo-daemonset.yaml
+```
+
+`requests` 提供调度保障，`limits` 由 kubelet 写入 Pod cgroup，负责限制
+Huatuo 的 CPU 和内存。Huatuo 默认不创建自身 cgroup，因此不会把进程移出
+`kubepods` 层级，containerd 重启和 Pod 删除时可以正常回收进程。
+
+示例值为初始基线，requests 与 limits 相同，因此 Pod 为 Guaranteed QoS。
+只有显式传入 `--enable-cgroup` 时 `[Runtime]` 才生效；Kubernetes 部署不要传入
+该参数。
 
 ### 1.5 验证部署
 
@@ -49,6 +77,10 @@ kubectl get pods \
   --namespace default \
   --selector app=huatuo \
   --output wide
+
+kubectl get daemonset huatuo \
+  --namespace default \
+  --output jsonpath='{.spec.template.spec.containers[?(@.name=="huatuo")].resources}'
 ```
 
 更新 `huatuo-bamai.conf` 后，重新执行 1.3 节更新 ConfigMap，并手工触发滚动更新：
@@ -91,10 +123,10 @@ image:
 resources:
   limits:
     cpu: "2"
-    memory: 4Gi
+    memory: 2Gi
   requests:
-    cpu: "1"
-    memory: 1Gi
+    cpu: "2"
+    memory: 2Gi
 
 nodeSelector:
   kubernetes.io/os: linux

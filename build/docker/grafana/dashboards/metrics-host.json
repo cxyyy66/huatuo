@@ -72,7 +72,7 @@
         "type": "prometheus",
         "uid": "huatuo-bamai-prom"
       },
-      "description": "List of all containers running on this host.",
+      "description": "Containers on this host.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -143,7 +143,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "huatuo_bamai_arp_container_entries{host=~\"$host\",region=\"$region\"}",
+          "expr": "huatuo_bamai_arp_container_entries{host=~\"$host\",region=~\"$region\"}",
           "format": "table",
           "interval": "",
           "legendFormat": "",
@@ -287,7 +287,7 @@
           "displayMode": "table",
           "placement": "right",
           "showLegend": true,
-          "width": 300
+          "width": 500
         },
         "tooltip": {
           "hideZeros": false,
@@ -303,15 +303,15 @@
             "uid": "huatuo-bamai-prom"
           },
           "exemplar": true,
-          "expr": "$metric{host=~\"$host\",region=\"$region\"}",
+          "expr": "$metric{host=~\"$host\",region=~\"$region\"}",
           "interval": "",
-          "legendFormat": "{{host}}/{{container_host}}:{{container_type}}",
+          "legendFormat": "{{host}}|{{container_host}}:{{container_type}}",
           "refId": "A"
         }
       ],
       "title": "Selected Metric: $metric",
       "type": "timeseries",
-      "description": "Arbitrary metric selected from the $metric variable, filtered by host and region."
+      "description": "Selected metric filtered by host and region."
     },
     {
       "collapsed": true,
@@ -332,7 +332,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Host-level user-space CPU utilization",
+          "description": "Host user CPU utilization.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -403,7 +403,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -420,7 +420,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "huatuo_bamai_cpu_util_usr{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_cpu_util_usr{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "{{host}}",
               "range": true,
@@ -435,7 +435,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Host-level kernel-space CPU utilization",
+          "description": "Host kernel CPU utilization.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -505,7 +505,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -521,7 +521,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_cpu_util_sys{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_cpu_util_sys{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "{{host}}",
               "refId": "A"
@@ -535,7 +535,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Per-container user-space CPU utilization on host.",
+          "description": "Per-container user CPU utilization.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -607,7 +607,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -623,9 +623,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_cpu_util_container_usr{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_cpu_util_container_usr{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}/{{container_name}}:{{container_type}}",
+              "legendFormat": "{{host}}|{{container_host}}|{{container_name}}:{{container_type}}",
               "refId": "A"
             }
           ],
@@ -637,7 +637,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Per-container kernel-space CPU utilization on host.",
+          "description": "Per-container kernel CPU utilization.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -707,7 +707,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -722,9 +722,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_cpu_util_container_sys{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_cpu_util_container_sys{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}:{{container_type}}",
+              "legendFormat": "{{host}}|{{container_host}}|{{container_name}}:{{container_type}}",
               "refId": "A"
             }
           ],
@@ -736,7 +736,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Wait time caused by host-level resource contention outside the container's cgroup.",
+          "description": "Wait time from host-level resource contention.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -806,7 +806,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -821,9 +821,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_cpu_stat_container_exter_wait_rate{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_cpu_stat_container_exter_wait_rate{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}:{{container_type}}",
+              "legendFormat": "{{host}}|{{container_host}}:{{container_type}}",
               "refId": "A"
             }
           ],
@@ -835,7 +835,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Wait time caused by cgroup quota limits within the\ncontainer.",
+          "description": "Wait time from cgroup CPU quota limits.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -905,7 +905,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -920,9 +920,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_cpu_stat_container_inner_wait_rate{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_cpu_stat_container_inner_wait_rate{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}:{{container_type}}",
+              "legendFormat": "{{host}}|{{container_host}}:{{container_type}}",
               "refId": "A"
             }
           ],
@@ -934,7 +934,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "CPU throttling events when container exceeds its cgroup CPU quota.",
+          "description": "CPU throttle events when cgroup quota exceeded.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1005,7 +1005,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -1020,9 +1020,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_cpu_stat_container_throttle_wait_rate{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_cpu_stat_container_throttle_wait_rate{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}:{{container_type}}",
+              "legendFormat": "{{host}}|{{container_host}}:{{container_type}}",
               "refId": "A"
             }
           ],
@@ -1034,7 +1034,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "CPU run queue latency distribution by zone (rate)",
+          "description": "Run queue latency distribution by zone (rate).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1105,7 +1105,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -1122,7 +1122,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_runqlat_latency{host=~\"$host\",region=\"$region\"}[5m])",
+              "expr": "rate(huatuo_bamai_runqlat_latency{host=~\"$host\",region=~\"$region\"}[5m])",
               "interval": "",
               "legendFormat": "{{host}} zone={{zone}}",
               "range": true,
@@ -1137,7 +1137,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Softirq latency distribution by type and zone (rate)",
+          "description": "Softirq latency distribution by type and zone (rate).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1208,7 +1208,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -1225,7 +1225,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_softirq_latency{host=~\"$host\",region=\"$region\"}[5m])",
+              "expr": "rate(huatuo_bamai_softirq_latency{host=~\"$host\",region=~\"$region\"}[5m])",
               "interval": "",
               "legendFormat": "{{host}} {{type}} zone={{zone}}",
               "range": true,
@@ -1267,7 +1267,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Cumulative count of pages reclaimed synchronously by the  process itself (direct reclaim path)",
+          "description": "Pages reclaimed via direct reclaim path (cumulative).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1337,7 +1337,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -1353,9 +1353,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_memory_vmstat_pgsteal_direct{host=~\"$host\",region=\"$region\"}/256",
+              "expr": "huatuo_bamai_memory_vmstat_pgsteal_direct{host=~\"$host\",region=~\"$region\"}/256",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}",
+              "legendFormat": "{{host}}|{{container_host}}",
               "refId": "A"
             }
           ],
@@ -1367,7 +1367,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Cumulative count of pages reclaimed asynchronously by the kswapd background daemon.",
+          "description": "Pages reclaimed by kswapd daemon (cumulative).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1437,7 +1437,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -1453,9 +1453,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_memory_vmstat_pgsteal_kswapd{host=~\"$host\",region=\"$region\"}/256",
+              "expr": "huatuo_bamai_memory_vmstat_pgsteal_kswapd{host=~\"$host\",region=~\"$region\"}/256",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}",
+              "legendFormat": "{{host}}|{{container_host}}",
               "refId": "A"
             }
           ],
@@ -1467,7 +1467,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Real-time count of memory pages modified but not yet written to disk.",
+          "description": "Dirty pages not yet written to disk.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1537,7 +1537,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -1553,9 +1553,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_memory_vmstat_nr_dirty{host=~\"$host\",region=\"$region\"}/256",
+              "expr": "huatuo_bamai_memory_vmstat_nr_dirty{host=~\"$host\",region=~\"$region\"}/256",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}",
+              "legendFormat": "{{host}}|{{container_host}}",
               "refId": "A"
             }
           ],
@@ -1567,7 +1567,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Real-time count of memory pages currently being flushed to disk.",
+          "description": "Pages being flushed to disk.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1637,7 +1637,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -1652,9 +1652,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_memory_vmstat_nr_writeback{host=~\"$host\",region=\"$region\"}/256",
+              "expr": "huatuo_bamai_memory_vmstat_nr_writeback{host=~\"$host\",region=~\"$region\"}/256",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}",
+              "legendFormat": "{{host}}|{{container_host}}",
               "refId": "A"
             }
           ],
@@ -1666,7 +1666,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Real-time count of unallocated memory pages available on the host.",
+          "description": "Free memory pages available.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1736,7 +1736,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -1751,9 +1751,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_memory_vmstat_nr_free_pages{host=~\"$host\",region=\"$region\"}/256",
+              "expr": "huatuo_bamai_memory_vmstat_nr_free_pages{host=~\"$host\",region=~\"$region\"}/256",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}",
+              "legendFormat": "{{host}}|{{container_host}}",
               "refId": "A"
             }
           ],
@@ -1765,7 +1765,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Real-time size of file-backed page cache in memory.",
+          "description": "File-backed page cache size.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1835,7 +1835,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -1850,9 +1850,9 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_memory_vmstat_nr_inactive_file{host=~\"$host\",region=\"$region\"}/256 + huatuo_bamai_memory_vmstat_nr_active_file{host=~\"$host\",region=\"$region\"}/256",
+              "expr": "huatuo_bamai_memory_vmstat_nr_inactive_file{host=~\"$host\",region=~\"$region\"}/256 + huatuo_bamai_memory_vmstat_nr_active_file{host=~\"$host\",region=~\"$region\"}/256",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}",
+              "legendFormat": "{{host}}|{{container_host}}",
               "refId": "A"
             }
           ],
@@ -1864,7 +1864,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Real-time anonymous memory usage including shared memory (shmem/tmpfs).",
+          "description": "Anonymous memory including shmem/tmpfs.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1934,7 +1934,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -1950,9 +1950,9 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "huatuo_bamai_memory_vmstat_nr_inactive_anon{host=~\"$host\",region=\"$region\"}/256 + huatuo_bamai_memory_vmstat_nr_active_anon{host=~\"$host\",region=\"$region\"}/256",
+              "expr": "huatuo_bamai_memory_vmstat_nr_inactive_anon{host=~\"$host\",region=~\"$region\"}/256 + huatuo_bamai_memory_vmstat_nr_active_anon{host=~\"$host\",region=~\"$region\"}/256",
               "interval": "",
-              "legendFormat": "{{host}}/{{container_host}}",
+              "legendFormat": "{{host}}|{{container_host}}",
               "range": true,
               "refId": "A"
             }
@@ -1992,7 +1992,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Total received bytes per second across all network interfaces.",
+          "description": "Rx bytes/s across all interfaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2062,7 +2062,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -2078,7 +2078,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_receive_bytes_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_receive_bytes_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "interval": "",
               "legendFormat": "{{host}}/{{device}}",
               "range": true,
@@ -2090,7 +2090,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_container_receive_bytes_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_container_receive_bytes_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "{{container_host}}",
@@ -2105,7 +2105,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Total received packets per second across all network interfaces.",
+          "description": "Rx packets/s across all interfaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2175,7 +2175,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -2190,7 +2190,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_receive_packets_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_receive_packets_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "{{host}}/{{device}}",
@@ -2202,7 +2202,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_container_receive_packets_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_container_receive_packets_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "{{container_host}}",
@@ -2217,7 +2217,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Total transmitted bytes per second across all network interfaces.",
+          "description": "Tx bytes/s across all interfaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2287,7 +2287,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -2302,7 +2302,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_transmit_bytes_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_transmit_bytes_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "interval": "",
               "legendFormat": "{{host}}/{{device}}",
               "refId": "A"
@@ -2313,7 +2313,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_container_transmit_bytes_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_container_transmit_bytes_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "{{container_host}}",
@@ -2328,7 +2328,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Total transmitted packets per second across all network interfaces.",
+          "description": "Tx packets/s across all interfaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2398,7 +2398,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -2413,7 +2413,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_transmit_packets_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_transmit_packets_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "interval": "",
               "legendFormat": "{{host}}/{{device}}",
               "refId": "A"
@@ -2424,7 +2424,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_container_transmit_packets_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_container_transmit_packets_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "{{container_host}}",
@@ -2439,7 +2439,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Receive-side anomaly stats: drops, errors, FIFO overruns, frame errors (packets/s).",
+          "description": "Rx anomalies: drops, errors, overruns, frame errors (pkt/s).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2510,7 +2510,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -2525,7 +2525,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_receive_dropped_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_receive_dropped_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "interval": "",
               "legendFormat": "dropped: {{device}}",
               "refId": "A"
@@ -2536,7 +2536,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_receive_errors_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_receive_errors_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "errors: {{device}}",
@@ -2551,7 +2551,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Transmit-side anomaly stats: drops, errors, FIFO overruns, carrier errors (packets/s).",
+          "description": "Tx anomalies: drops, errors, overruns, carrier errors (pkt/s).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2622,7 +2622,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -2637,7 +2637,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_transmit_dropped_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_transmit_dropped_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "interval": "",
               "legendFormat": "dropped: {{device}}",
               "refId": "A"
@@ -2648,7 +2648,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_transmit_errors_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_transmit_errors_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "errors: {{device}}",
@@ -2660,7 +2660,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_transmit_carrier_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_transmit_carrier_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "carrier: {{device}}",
@@ -2672,7 +2672,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_transmit_colls_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_transmit_colls_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "colls: {{device}}",
@@ -2687,7 +2687,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Queueing discipline total throughput (MiB/s).",
+          "description": "Qdisc throughput (MiB/s).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2778,7 +2778,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -2793,7 +2793,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_qdisc_bytes_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_qdisc_bytes_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "instant": false,
               "interval": "",
@@ -2810,7 +2810,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Queueing discipline total packet rate (packets/s).",
+          "description": "Qdisc packet rate (pkt/s).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2901,7 +2901,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -2916,7 +2916,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_qdisc_packets_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_qdisc_packets_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "instant": false,
               "interval": "",
@@ -2933,7 +2933,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Qdisc-level anomaly stats: drops, backlog, overlimits, requeues (packets/s).",
+          "description": "Qdisc anomalies: drops, backlog, overlimits, requeues (pkt/s).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3028,7 +3028,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -3043,7 +3043,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_qdisc_drops_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_qdisc_drops_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "instant": false,
               "interval": "",
@@ -3057,7 +3057,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_qdisc_overlimits_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_qdisc_overlimits_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3072,7 +3072,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_qdisc_requeues_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_qdisc_requeues_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3087,7 +3087,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_netdev_qdisc_backlog{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_netdev_qdisc_backlog{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3105,7 +3105,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Total ARP request and reply packets on all interfaces.",
+          "description": "ARP packets/s on all interfaces.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3196,7 +3196,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -3211,7 +3211,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_arp_total{host=~\"$host\",region=\"$region\"}[5m])",
+              "expr": "rate(huatuo_bamai_arp_total{host=~\"$host\",region=~\"$region\"}[5m])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3226,7 +3226,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_arp_entries{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_arp_entries{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "instant": false,
               "interval": "",
@@ -3240,7 +3240,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_arp_container_entries{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_arp_container_entries{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3258,7 +3258,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Number of TCP sockets currently in use.",
+          "description": "TCP sockets in use.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3349,7 +3349,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -3364,7 +3364,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_TCP_inuse{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_TCP_inuse{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3379,7 +3379,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_container_TCP_inuse{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_container_TCP_inuse{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3397,7 +3397,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Number of TCP sockets in TIME_WAIT state.",
+          "description": "TCP sockets in TIME_WAIT.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3488,7 +3488,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -3503,7 +3503,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_TCP_tw{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_TCP_tw{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3518,7 +3518,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_container_TCP_tw{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_container_TCP_tw{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3536,7 +3536,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Total socket count across all protocols (TCP, UDP, RAW, etc.).",
+          "description": "Total sockets across all protocols.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3627,7 +3627,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -3642,7 +3642,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_sockets_used{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_sockets_used{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3657,7 +3657,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_container_sockets_used{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_container_sockets_used{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3675,7 +3675,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Total memory consumed by TCP socket buffers (bytes).",
+          "description": "TCP socket buffer memory (bytes).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3766,7 +3766,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -3781,7 +3781,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_TCP_mem_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_TCP_mem_bytes{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3796,7 +3796,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_container_TCP_mem_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_container_TCP_mem_bytes{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3814,7 +3814,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Total memory consumed by UDP socket buffers (bytes).",
+          "description": "UDP socket buffer memory (bytes).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3905,7 +3905,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -3920,7 +3920,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_UDP_mem_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_UDP_mem_bytes{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3935,7 +3935,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_container_UDP_mem_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_container_UDP_mem_bytes{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -3953,7 +3953,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Number of UDP sockets currently in use.",
+          "description": "UDP sockets in use.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4044,7 +4044,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -4059,7 +4059,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_UDP_inuse{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_UDP_inuse{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4074,7 +4074,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_sockstat_container_UDP_inuse{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_sockstat_container_UDP_inuse{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4092,7 +4092,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Aggregated kernel netstat counters (SNMP/netstat).",
+          "description": "Kernel netstat counters (SNMP).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4163,7 +4163,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -4178,7 +4178,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_InSegs{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_InSegs{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4193,7 +4193,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_OutSegs{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_OutSegs{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4208,7 +4208,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPDelivered{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPDelivered{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4223,7 +4223,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPOrigDataSent{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPOrigDataSent{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4238,7 +4238,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_ActiveOpens{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_ActiveOpens{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4253,7 +4253,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_netstat_Tcp_CurrEstab{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_netstat_Tcp_CurrEstab{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4268,7 +4268,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_PassiveOpens{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_PassiveOpens{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4286,7 +4286,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Packet loss rate derived from netstat counters.",
+          "description": "Packet loss rate from netstat.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4357,7 +4357,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -4372,7 +4372,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_ListenDrops{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_ListenDrops{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4387,7 +4387,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_ListenOverflows{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_ListenOverflows{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4402,7 +4402,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPReqQFullDoCookies{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPReqQFullDoCookies{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4417,7 +4417,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_PFMemallocDrop{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_PFMemallocDrop{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4432,7 +4432,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPBacklogDrop{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPBacklogDrop{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4447,7 +4447,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPRcvQDrop{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPRcvQDrop{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4462,7 +4462,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPTimeouts{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPTimeouts{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4477,7 +4477,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPLossFailures{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPLossFailures{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4492,7 +4492,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSACKDiscard{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSACKDiscard{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4507,7 +4507,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPMemoryPressures{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPMemoryPressures{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4522,7 +4522,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPMinTTLDrop{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPMinTTLDrop{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4537,7 +4537,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPMinTTLDrop{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPMinTTLDrop{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4552,7 +4552,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPTimeWaitOverflow{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPTimeWaitOverflow{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4570,7 +4570,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Network error counters: InErrors, OutErrors, InCsumErrors, etc.",
+          "description": "Network errors: InErrors, OutErrors, InCsumErrors.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4641,7 +4641,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -4656,7 +4656,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_InErrs{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_InErrs{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4671,7 +4671,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_InCsumErrors{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_InCsumErrors{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4686,7 +4686,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPAbortOnMemory{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPAbortOnMemory{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4701,7 +4701,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPAbortOnTimeout{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPAbortOnTimeout{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4716,7 +4716,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPRetransFail{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPRetransFail{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4731,7 +4731,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSackFailures{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSackFailures{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4746,7 +4746,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSackFailures{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSackFailures{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4761,7 +4761,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_SyncookiesFailed{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_SyncookiesFailed{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4776,7 +4776,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPWqueueTooBig{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPWqueueTooBig{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4791,7 +4791,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_AttemptFails{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_AttemptFails{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4809,7 +4809,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "TCP segment retransmission rate and count.",
+          "description": "TCP retransmission rate and count.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4880,7 +4880,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -4895,7 +4895,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_RetransSegs{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_RetransSegs{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4910,7 +4910,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSynRetrans{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSynRetrans{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4925,7 +4925,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPFastRetrans{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPFastRetrans{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4940,7 +4940,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSlowStartRetrans{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSlowStartRetrans{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4955,7 +4955,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSpuriousRTOs{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSpuriousRTOs{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4970,7 +4970,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSpuriousRtxHostQueues{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSpuriousRtxHostQueues{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -4988,7 +4988,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Packets dropped due to socket receive buffer exhaustion (RcvbufErrors, SndbufErrors).",
+          "description": "Packets dropped from buffer exhaustion (RcvbufErrors, SndbufErrors).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5059,7 +5059,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -5074,7 +5074,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_PruneCalled{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_PruneCalled{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -5089,7 +5089,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_RcvPruned{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_RcvPruned{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -5107,7 +5107,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "TCP SYN packet statistics: SYN received, SYN sent, SYN retransmissions.",
+          "description": "TCP SYN stats: received, sent, retransmissions.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5178,7 +5178,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -5194,7 +5194,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_ActiveOpens{host=~\"$host\",region=\"$region\"}[30s])+rate(huatuo_bamai_netstat_TcpExt_TCPSynRetrans{host=~\"$host\",region=\"$region\"}[30s])+rate(huatuo_bamai_netstat_Tcp_PassiveOpens{host=~\"$host\",region=\"$region\"}[30s])+rate(huatuo_bamai_netstat_TcpExt_ListenDrops{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_ActiveOpens{host=~\"$host\",region=~\"$region\"}[30s])+rate(huatuo_bamai_netstat_TcpExt_TCPSynRetrans{host=~\"$host\",region=~\"$region\"}[30s])+rate(huatuo_bamai_netstat_Tcp_PassiveOpens{host=~\"$host\",region=~\"$region\"}[30s])+rate(huatuo_bamai_netstat_TcpExt_ListenDrops{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -5210,7 +5210,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_ActiveOpens{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_ActiveOpens{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -5226,7 +5226,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_Tcp_PassiveOpens{host=~\"$host\",region=\"$region\"}[30s])+rate(huatuo_bamai_netstat_TcpExt_ListenDrops{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_Tcp_PassiveOpens{host=~\"$host\",region=~\"$region\"}[30s])+rate(huatuo_bamai_netstat_TcpExt_ListenDrops{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "Receiver: {{host}}",
@@ -5240,7 +5240,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSynRetrans{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netstat_TcpExt_TCPSynRetrans{host=~\"$host\",region=~\"$region\"}[30s])",
               "hide": false,
               "interval": "",
               "legendFormat": "Retransmission count（Sender+Reciever）: {{host}}",
@@ -5256,7 +5256,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Packets dropped at the NIC hardware/driver level (packets/s).",
+          "description": "NIC hardware/driver drops (pkt/s).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5327,7 +5327,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -5342,7 +5342,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_hw_rx_dropped_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_hw_rx_dropped_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -5387,7 +5387,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Disk IO count where queue-to-completion (q2c) latency exceeds 20ms, 5-minute incremental.",
+          "description": "Disk IO with q2c latency >20ms (5-min incremental).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5458,7 +5458,7 @@
               "showLegend": true,
               "sortBy": "Mean",
               "sortDesc": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -5474,7 +5474,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "increase(huatuo_bamai_iolatency_blkdisk_q2c{host=~\"$host\",region=\"$region\"}[5m])",
+              "expr": "increase(huatuo_bamai_iolatency_blkdisk_q2c{host=~\"$host\",region=~\"$region\"}[5m])",
               "interval": "",
               "legendFormat": "{{host}},disk={{disk}} [{{latency}}]",
               "refId": "A"
@@ -5488,7 +5488,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Disk IO count where device-to-completion (d2c) latency exceeds 20ms, 5-minute incremental.",
+          "description": "Disk IO with d2c latency >20ms (5-min incremental).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5584,7 +5584,7 @@
               "showLegend": true,
               "sortBy": "Mean",
               "sortDesc": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -5600,7 +5600,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "increase(huatuo_bamai_iolatency_blkdisk_d2c{host=~\"$host\",region=\"$region\"}[5m])",
+              "expr": "increase(huatuo_bamai_iolatency_blkdisk_d2c{host=~\"$host\",region=~\"$region\"}[5m])",
               "interval": "",
               "legendFormat": "{{host}},disk={{disk}} [{{latency}}]",
               "refId": "A"
@@ -5614,7 +5614,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Disk IO count where RAID flush latency exceeds 20ms, 5-minute incremental.",
+          "description": "Disk IO with RAID flush latency >20ms (5-min incremental).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5685,7 +5685,7 @@
               "showLegend": true,
               "sortBy": "Mean",
               "sortDesc": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "hideZeros": false,
@@ -5701,7 +5701,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "increase(huatuo_bamai_iolatency_blkdisk_freeze{host=~\"$host\",region=\"$region\"}[5m])",
+              "expr": "increase(huatuo_bamai_iolatency_blkdisk_freeze{host=~\"$host\",region=~\"$region\"}[5m])",
               "interval": "",
               "legendFormat": "{{host}},disk={{disk}} [{{latency}}]",
               "refId": "A"
@@ -5742,7 +5742,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "XFS fragmentation level measured as average blocks per extent per second.",
+          "description": "XFS fragmentation: avg blocks per extent.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5813,7 +5813,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -5828,7 +5828,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "increase(huatuo_bamai_xfs_alloc_blocks_total{host=~\"$host\",region=\"$region\"}[5m]) / clamp_min(increase(huatuo_bamai_xfs_alloc_extents_total{host=~\"$host\",region=\"$region\"}[5m]), 1e-6)",
+              "expr": "increase(huatuo_bamai_xfs_alloc_blocks_total{host=~\"$host\",region=~\"$region\"}[5m]) / clamp_min(increase(huatuo_bamai_xfs_alloc_extents_total{host=~\"$host\",region=~\"$region\"}[5m]), 1e-6)",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -5846,7 +5846,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "XFS inode cache hit rate, 5-minute rolling average per second.",
+          "description": "XFS inode cache hit rate (5-min avg).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5917,7 +5917,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -5932,7 +5932,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "clamp_min((increase(huatuo_bamai_xfs_inode_attempts_total{host=~\"$host\",region=\"$region\"}[5m]) - increase(huatuo_bamai_xfs_inode_missed_total{host=~\"$host\",region=\"$region\"}[5m]))/clamp_min(increase(huatuo_bamai_xfs_inode_attempts_total{host=~\"$host\",region=\"$region\"}[5m]), 1e-6),0)",
+              "expr": "clamp_min((increase(huatuo_bamai_xfs_inode_attempts_total{host=~\"$host\",region=~\"$region\"}[5m]) - increase(huatuo_bamai_xfs_inode_missed_total{host=~\"$host\",region=~\"$region\"}[5m]))/clamp_min(increase(huatuo_bamai_xfs_inode_attempts_total{host=~\"$host\",region=~\"$region\"}[5m]), 1e-6),0)",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -5950,7 +5950,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "XFS buffer lock contention: number of waits for locked buffers per second.",
+          "description": "XFS buffer lock contention waits/s.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6021,7 +6021,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -6036,7 +6036,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_xfs_buf_locked_waited_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_xfs_buf_locked_waited_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -6054,7 +6054,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "XFS buffer busy acquisition: number of retries on busy buffers per second.",
+          "description": "XFS buffer busy retries/s.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6125,7 +6125,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -6140,7 +6140,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_xfs_buf_busy_locked_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_xfs_buf_busy_locked_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -6158,7 +6158,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Remaining free space in the XFS journal/write-ahead log (bytes).",
+          "description": "XFS journal free space (bytes).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6229,7 +6229,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -6244,7 +6244,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "huatuo_bamai_xfs_log_free_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_xfs_log_free_bytes{host=~\"$host\",region=~\"$region\"}",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -6262,7 +6262,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Count of sleeps per second due to XFS journal space exhaustion.",
+          "description": "XFS journal exhaustion sleeps/s.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6333,7 +6333,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "multi",
@@ -6348,7 +6348,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_xfs_log_space_sleep_total{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_xfs_log_space_sleep_total{host=~\"$host\",region=~\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
@@ -6393,7 +6393,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Process CPU usage as percentage of one core, derived from process_cpu_seconds_total rate.",
+          "description": "Process CPU usage (% of one core).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6464,7 +6464,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -6480,7 +6480,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "rate(huatuo_bamai_process_cpu_seconds_total{host=~\"$host\",region=\"$region\"}[1m]) * 100",
+              "expr": "rate(huatuo_bamai_process_cpu_seconds_total{host=~\"$host\",region=~\"$region\"}[1m]) * 100",
               "interval": "",
               "legendFormat": "{{host}}",
               "refId": "A"
@@ -6494,7 +6494,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Process RSS: total physical memory held by the OS. Go Runtime Total: all memory obtained from the OS by the Go runtime. Go Heap In-Use: live objects on the Go heap. Go Stack: goroutine stack memory.",
+          "description": "Process RSS and Go runtime memory breakdown. Go Heap In-Use: live objects on the Go heap. Go Stack: goroutine stack memory.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6565,7 +6565,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -6581,7 +6581,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_process_resident_memory_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_process_resident_memory_bytes{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "Process RSS",
               "refId": "A"
@@ -6594,7 +6594,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_go_memstats_sys_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_go_memstats_sys_bytes{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "Go Runtime Total",
               "refId": "B"
@@ -6607,7 +6607,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_go_memstats_heap_inuse_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_go_memstats_heap_inuse_bytes{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "Go Heap In-Use",
               "refId": "C"
@@ -6620,7 +6620,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_go_memstats_stack_inuse_bytes{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_go_memstats_stack_inuse_bytes{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "Go Stack",
               "refId": "D"
@@ -6634,7 +6634,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Current number of open file descriptors of the huatuo-bamai process.",
+          "description": "Open file descriptors.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6705,7 +6705,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -6721,7 +6721,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_process_open_fds{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_process_open_fds{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "Open FDs",
               "refId": "A"
@@ -6735,7 +6735,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Goroutines: number of Go goroutines. OS Threads: number of OS-level threads created by the Go runtime. A growing thread count may indicate a thread leak.",
+          "description": "Goroutine and OS thread count. count may indicate a thread leak.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6806,7 +6806,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -6822,7 +6822,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_go_goroutines{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_go_goroutines{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "Goroutines",
               "refId": "A"
@@ -6835,7 +6835,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_go_threads{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_go_threads{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "OS Threads",
               "refId": "B"
@@ -6849,7 +6849,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Number of live objects allocated on the Go heap. A sustained upward trend may indicate an object leak.",
+          "description": "Live heap objects; sustained growth may indicate a leak.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6920,7 +6920,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -6936,7 +6936,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_go_memstats_heap_objects{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_go_memstats_heap_objects{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "{{host}}",
               "refId": "A"
@@ -6950,7 +6950,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Average Go GC stop-the-world pause time per collection cycle. High values cause request latency spikes.",
+          "description": "Avg GC stop-the-world pause per cycle.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7021,7 +7021,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -7037,7 +7037,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "(rate(huatuo_bamai_go_gc_duration_seconds_sum{host=~\"$host\",region=\"$region\"}[5m]) / rate(huatuo_bamai_go_gc_duration_seconds_count{host=~\"$host\",region=\"$region\"}[5m])) * 1000",
+              "expr": "(rate(huatuo_bamai_go_gc_duration_seconds_sum{host=~\"$host\",region=~\"$region\"}[5m]) / rate(huatuo_bamai_go_gc_duration_seconds_count{host=~\"$host\",region=~\"$region\"}[5m])) * 1000",
               "interval": "",
               "legendFormat": "{{host}}",
               "refId": "A"
@@ -7051,7 +7051,7 @@
             "type": "prometheus",
             "uid": "huatuo-bamai-prom"
           },
-          "description": "Current GOGC setting controlling GC frequency. 100 means GC triggers when heap doubles. Lower values increase GC frequency and reduce memory usage.",
+          "description": "GOGC setting controlling GC trigger threshold.cy and reduce memory usage.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7122,7 +7122,7 @@
               "displayMode": "table",
               "placement": "right",
               "showLegend": true,
-              "width": 300
+              "width": 500
             },
             "tooltip": {
               "mode": "single",
@@ -7138,7 +7138,7 @@
               "editorMode": "code",
               "exemplar": true,
               "range": true,
-              "expr": "huatuo_bamai_go_gc_gogc_percent{host=~\"$host\",region=\"$region\"}",
+              "expr": "huatuo_bamai_go_gc_gogc_percent{host=~\"$host\",region=~\"$region\"}",
               "interval": "",
               "legendFormat": "{{host}}",
               "refId": "A"
@@ -7171,8 +7171,9 @@
     "list": [
       {
         "current": {
-          "text": "example",
-          "value": "example"
+          "text": "All",
+          "value": "$__all",
+          "selected": true
         },
         "datasource": {
           "type": "prometheus",
@@ -7182,7 +7183,7 @@
         "hide": 0,
         "includeAll": true,
         "label": "region",
-        "multi": false,
+        "multi": true,
         "name": "region",
         "options": [],
         "query": {
@@ -7193,7 +7194,8 @@
         "regex": "",
         "skipUrlSync": false,
         "sort": 2,
-        "type": "query"
+        "type": "query",
+        "allValue": ".*"
       },
       {
         "current": {
@@ -7211,6 +7213,7 @@
         "multi": true,
         "name": "host",
         "options": [],
+        "allValue": ".*",
         "query": {
           "query": "label_values(huatuo_bamai_cpu_util_usr{region=~\"$region\"}, host)",
           "refId": "StandardVariableQuery"

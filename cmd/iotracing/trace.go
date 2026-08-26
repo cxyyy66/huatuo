@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/bpf"
+	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/internal/utils/bytesutil"
 	"huatuo-bamai/internal/utils/executil"
@@ -97,6 +98,10 @@ func collectStalls(reader bpf.PerfEventReader, maxStack uint64) ([]types.IOSched
 
 	for {
 		if err := reader.ReadInto(&event); err != nil {
+			if errors.Is(err, bpf.ErrPerfEventSamplesLost) {
+				log.WithError(err).Warn("lost BPF perf event samples")
+				continue
+			}
 			if errors.Is(err, types.ErrExitByCancelCtx) {
 				break
 			}
@@ -108,13 +113,15 @@ func collectStalls(reader bpf.PerfEventReader, maxStack uint64) ([]types.IOSched
 			continue
 		}
 
-		hostname, _ := executil.HostnameByPid(event.PID)
+		hostname, _ := executil.HostnameByPid(event.TGID)
 
 		ring[head] = types.IOScheduleEvent{
 			Comm:              bytesutil.ToStr(event.Comm[:]),
 			ContainerHostname: hostname,
-			Pid:               event.PID,
-			LatencyUs:         event.Cost / 1000,
+			PID:               event.TGID,
+			TID:               event.TID,
+			CPU:               event.CPU,
+			ScheduleLatencyUS: event.DurationNS / 1000,
 			Stack:             symbol.KsymStackStrs(event.Stack[:], symbol.KsymStackMinDepth),
 		}
 
@@ -156,7 +163,7 @@ func dumpAndAggregate(b bpf.BPF, cfg ioConfig) ([]types.ProcessFileIOStats, erro
 		}
 
 		blkSize := record.BlockWriteBytes + record.BlockReadBytes
-		table.Add(record.Pid, &fileEntry{Record: &record, Size: blkSize})
+		table.Add(record.TGID, &fileEntry{Record: &record, Size: blkSize})
 	}
 
 	groups := table.TopN(int(cfg.maxProcess))

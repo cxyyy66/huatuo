@@ -112,7 +112,7 @@ The `data` field contains the standard HUATUO event record:
     "container_hostname": "app-pod",
     "container_host_namespace": "prod",
     "container_type": "docker",
-    "container_qos": "Guaranteed"
+    "container_qos": "guaranteed"
   }
 }
 ```
@@ -131,7 +131,7 @@ The `data` field contains the standard HUATUO event record:
 | `container_hostname` | string | Container hostname |
 | `container_host_namespace` | string | Namespace of the container |
 | `container_type` | string | Container runtime type (docker, containerd, etc.) |
-| `container_qos` | string | Container QoS class |
+| `container_qos` | string | Container QoS class (`unknown`, `guaranteed`, `burstable`, or `besteffort`) |
 
 ---
 
@@ -148,7 +148,7 @@ The `data` field contains the standard HUATUO event record:
 | `netdev_txqueue_timeout` | Network device transmit queue timeout events |
 | `netdev_bonding_lacp` | Bond device LACP protocol anomaly events |
 | `net_rx_latency` | Network receive latency anomaly events |
-| `softirq_tracing` | Soft IRQ excessive latency tracing events |
+| `sched_tick` | Scheduler tick interval tracing events |
 | `memory_reclaim_events` | Memory reclaim anomaly events |
 | `cpuidle` | CPU idle rate anomaly (AutoTracing, auto-triggered) |
 | `cpusys` | CPU system-mode usage anomaly (AutoTracing, auto-triggered) |

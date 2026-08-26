@@ -146,6 +146,11 @@ For more profiling dimensions, see the Profiles API section below.
 
 huatuo-apiserver exposes `/v1/profiles` for service-based continuous profiling. Clients can create CPU or memory profiling jobs, query job status and results, and stop or delete jobs. huatuo-apiserver schedules each job on the HUATUO Agent running on the specified node. Profiling results are available through the returned Grafana URL or the raw data endpoint.
 
+Continuous profiling requires Elasticsearch to store profile data.
+huatuo-apiserver enables profiling only when Elasticsearch profile storage is
+configured. Otherwise, it rejects all `/v1/profiles` requests with HTTP 503 and
+the `profiling_disabled` error code.
+
 ### 1. Request Conventions
 
 By default, huatuo-apiserver listens on `:12740`. The following examples use environment variables for the server address and bearer token:
@@ -163,20 +168,30 @@ Authorization: Bearer REPLACE_WITH_RANDOM_HEX
 
 A non-administrator user requires both `/v1/profiles` and
 `/v1/profiles/**` permissions. Permissions may include an HTTP method, such as
-`GET /v1/profiles/**`. The API uses the following common JSON response
-envelope:
+`GET /v1/profiles/**`. Successful responses contain only `data`:
 
 ```json
 {
-  "code": 0,
-  "message": "success",
   "data": {}
 }
 ```
 
+Error responses contain a stable code and a human-readable message:
+
+```json
+{
+  "error": {
+    "code": "profiling_disabled",
+    "message": "profiling is disabled: configure profile storage to enable it"
+  }
+}
+```
+
+Clients must branch on `error.code` and must not parse `error.message`.
+
 ### 2. Query Profiling Capabilities
 
-Before creating a job, query the profiling types, languages, memory modes, and runtime settings supported by the server:
+Before creating a job, query the profiling types, languages, CPU modes, memory modes, and runtime settings supported by the server:
 
 ```bash
 curl -sS \
@@ -190,12 +205,14 @@ The `data` object contains these fields:
 | --- | --- |
 | `types` | Supported profiling types: `cpu` and `memory` |
 | `cpu_languages` | Languages supported by CPU profiling |
+| `cpu_modes` | CPU profiling modes grouped by language |
 | `memory_languages` | Languages supported by memory profiling |
 | `memory_modes` | Memory profiling modes grouped by language; values are accepted by job creation |
 | `aggregation_interval_seconds` | Server-side data aggregation interval |
 | `max_concurrent_profilers` | Maximum number of concurrent profiler processes; `0` disables the limit |
 
-CPU profiling currently supports `c`, `c++`, `go`, `java`, and `python`. Memory profiling supports these combinations:
+CPU profiling supports `oncpu` and `offcpu` for `c`, `c++`, and `go`;
+`java` and `python` support only `oncpu`. Memory profiling supports these combinations:
 
 | Language | `memory_mode` | Description |
 | --- | --- | --- |
@@ -259,8 +276,6 @@ A successful request returns `201 Created`. The `Location` response header ident
 
 ```json
 {
-  "code": 0,
-  "message": "success",
   "data": {
     "id": "<profile-job-id>"
   }
@@ -385,7 +400,7 @@ A successful deletion returns `204 No Content` with no response body. If the job
 
 `profiler` is HUATUO's standalone performance profiling CLI. It samples host processes or processes inside containers without requiring huatuo-apiserver, Elasticsearch, or Grafana. The tool supports C, C++, Go, Java, and Python processes and writes call stacks as folded stacks or SVG flame graphs.
 
-C, C++, and Go use the eBPF-based native collector to observe CPU usage, virtual memory allocation, physical memory allocation, and physical memory residency. Java uses async-profiler to observe CPU usage, object allocation, and live objects. Python uses py-spy to observe CPU usage. The results can be used to locate hot functions, attribute memory growth, analyze processes inside containers, and preserve performance data for later diagnosis.
+C, C++, and Go use the eBPF-based native collector to observe on-CPU usage, off-CPU blocking and scheduling delay, virtual memory allocation, physical memory allocation, and physical memory residency. Java uses async-profiler to observe CPU usage, object allocation, and live objects. Python uses py-spy to observe CPU usage. The results can be used to locate hot functions, attribute memory growth, analyze processes inside containers, and preserve performance data for later diagnosis.
 
 The remainder of this section covers standalone use of `_output/bin/profiler`. For service-based continuous profiling, see the Profiles API section above.
 
@@ -469,7 +484,12 @@ Native profiling options:
 | Option | Default | Scope | Description |
 | --- | --- | --- | --- |
 | `--memory-mode` | None | Native memory, Java memory | Memory profiling mode; required with `--type memory` |
-| `--cpuid` | All CPUs | Native CPU | Comma-separated CPU list or ranges, for example `1,3,5-10` |
+| `--cpuid` | All CPUs | Native CPU | Comma-separated CPU list or ranges; off-CPU samples use the task's switch-out CPU |
+| `--cpu-mode` | `oncpu` | Native CPU | `oncpu` for frequency sampling or `offcpu` for blocked/runqueue time attribution |
+| `--require-hardware-pmu` | `false` | Native on-CPU | Require hardware PMU sampling; fail instead of falling back to the software CPU clock |
+| `--offcpu-phase` | `all` | Native off-CPU | Accumulate `all`, `blocked`, or `runqueue` time |
+| `--offcpu-min-duration-us` | `1000` | Native off-CPU | Discard phases shorter than this duration in microseconds |
+| `--offcpu-stats` | `false` | Native off-CPU | Collect BPF diagnostic statistics; adds overhead to error and cleanup paths |
 | `--thread-group` | `false` | Native | Also profile other threads in the target PID's thread group |
 | `--physical-memory-probability` | `100` | Native physical memory | Physical memory event sampling probability from 1 to 100 |
 | `--log-bpf-debug` | `false` | Native | Emit BPF debug events; not recommended for normal profiling |
@@ -501,6 +521,11 @@ sudo _output/bin/profiler \
 
 Add `--thread-group` to include worker threads in the same process. Add `--cpuid 2,4-7` to limit collection to selected CPUs. Native CPU profiling also supports container-level and host-level collection:
 
+Native on-CPU profiling first uses hardware CPU-cycle events and falls back to
+the software CPU clock when the hardware PMU is unavailable. `--freq` remains
+samples per second for either source. Use `--require-hardware-pmu` when software
+clock fallback would hide IRQ-disabled CPU time.
+
 ```bash
 # Profile a specific container
 sudo _output/bin/profiler \
@@ -514,6 +539,20 @@ sudo _output/bin/profiler \
   --duration 30 --aggr-interval 10 \
   --output-format flamegraph --output-path ./profiles/host
 ```
+
+To attribute time spent outside the CPU to the call path that descheduled, select off-CPU mode:
+
+```bash
+sudo _output/bin/profiler \
+  --type cpu --language go --pid 12345 --thread-group \
+  --cpu-mode offcpu --offcpu-phase all \
+  --cpuid 2,4-7 \
+  --offcpu-min-duration-us 1000 \
+  --duration 30 --aggr-interval 10 \
+  --output-format flamegraph --output-path ./profiles/go-offcpu
+```
+
+Off-CPU output is event-driven, so `--freq` does not apply. With `--cpuid`, an interval is collected only when the task switches out from a selected CPU; later wakeup or switch-in on another CPU does not change that attribution. Flame graphs use nanoseconds directly and add roots such as `off-CPU blocked`, `scheduling delay (preempted)`, and `scheduling delay (yielded)`. The `all` phase includes blocked and runqueue time but keeps them separated by these roots. A single stable BPF stack map is used so a long sleep cannot be resolved against a later rotating stack-map generation.
 
 Native memory profiling supports these dimensions:
 
@@ -627,6 +666,9 @@ The repository's integration tests provide executable end-to-end examples. Each 
 # Native CPU
 sudo ./integration/run.sh test_profiler_native_cpu.sh
 
+# Native off-CPU blocking and scheduling delay
+sudo ./integration/run.sh test_profiler_native_cpu_offcpu.sh
+
 # Native virtual and physical memory
 sudo ./integration/run.sh test_profiler_native_mem_virtual_alloc.sh
 sudo ./integration/run.sh test_profiler_native_mem_physical_usage.sh
@@ -643,7 +685,7 @@ Container, thread-group, and CPU-selection examples are available in `test_profi
 
 ## ⚙️ How It Works
 
-`profiler` first selects a collector based on the language and profile type. The native CPU collector attaches eBPF programs to perf events. Native memory collectors record allocation and release paths through kernel events. The Java and Python collectors start async-profiler and py-spy subprocesses, respectively. Collected records enter a common aggregation pipeline, which merges counts by call stack and then writes a local file or uploads the result to remote storage.
+`profiler` first selects a collector based on the language and profile type. The native on-CPU collector attaches eBPF programs to perf events; off-CPU mode attaches scheduler switch, wakeup, exit, and task-free tracepoints. Native memory collectors record allocation and release paths through kernel events. The Java and Python collectors start async-profiler and py-spy subprocesses, respectively. Collected records enter a common aggregation pipeline, which merges counts by call stack and then writes a local file or uploads the result to remote storage.
 
 ```mermaid
 flowchart LR

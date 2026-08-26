@@ -62,7 +62,7 @@ HUATUO 已进入 [CNCF Landscape](https://landscape.cncf.io/?item=observability-
 
   使用 Docker 一键启动华佗核心服务：
     ```bash
-    $ docker run --privileged --cgroupns=host --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
+    $ docker run --privileged --pid=host --cgroupns=host --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
     ```
 
   在另一终端获取指标：
@@ -85,6 +85,8 @@ HUATUO 已进入 [CNCF Landscape](https://landscape.cncf.io/?item=observability-
     HUATUO 组件运行示意图<br>
     </small>
     </div>
+
+    ![](/docs/img/quickstart-autotrcing-event.png)
 
 - **注意**
   请勿将 latest 标签的镜像部署至生产环境，此为开发测试分支。请使用正式发版的镜像或二进制文件。
