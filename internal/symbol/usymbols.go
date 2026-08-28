@@ -50,11 +50,13 @@ type cacheKey struct {
 
 // UsymResolver resolves user-space stack addresses to symbol names across pids.
 type UsymResolver struct {
-	exeCache        map[cacheKey]*elfCache // inode+xfs → elfcache
-	exeKeys         map[uint32]cacheKey    // pid → cachekey
-	libcaches       map[cacheKey]*libCache // inode+xfs → libcache
-	libKeys         map[string]cacheKey    // libpath → cachekey
-	procmaps        map[uint32]sections
+	exeCache  map[cacheKey]*elfCache // inode+xfs → elfcache
+	exeKeys   map[uint32]cacheKey    // pid → cachekey
+	libcaches map[cacheKey]*libCache // inode+xfs → libcache
+	libKeys   map[string]cacheKey    // libpath → cachekey
+	procmaps  map[uint32]sections
+	// processPaths is per PID because one inode-backed ELF can be visible at
+	// different /proc roots and module paths.
 	processPaths    map[uint32]elfProcessPath
 	names           map[string]string
 	elfSymbolLimits ELFSymbolLimits

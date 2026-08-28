@@ -130,6 +130,7 @@ func TestSymbolsResolve(t *testing.T) {
 		wantName string
 	}{
 		{name: "zero-size-symbol-does-not-cover-higher-offset", key: 0x1800, wantName: ""},
+		{name: "zero-size-symbol-matches-its-address", key: 0x1000, wantName: "kernel_sched_tick"},
 		{name: "user-style-in-range-resolves", key: 0x20ff, wantName: "user_func_malloc"},
 		{name: "user-style-end-exclusive", key: 0x2100, wantName: ""},
 		{name: "user-style-overflowing-end-does-not-wrap", key: math.MaxUint64, wantName: ""},
@@ -726,7 +727,7 @@ func TestElfSymbolsBoundsExpandedNamesInRealELF(t *testing.T) {
 	}
 
 	state := newELFSymbolParseState(limits)
-	got, err := state.parseSource(f, elfSymbolSource{name: "symtab", typ: elf.SHT_SYMTAB})
+	got, err := state.parseSource(f, elfSymbolTable{name: "symtab", typ: elf.SHT_SYMTAB})
 	if err != nil {
 		t.Fatalf("parseSource(real repeated-name ELF): %v", err)
 	}

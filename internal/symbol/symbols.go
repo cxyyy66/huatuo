@@ -124,7 +124,7 @@ func symbolCovers(addr, size, key uint64) bool {
 		return false
 	}
 	if size == 0 {
-		return false
+		return key == addr
 	}
 	return size <= math.MaxUint64-addr && key < addr+size
 }
@@ -254,7 +254,7 @@ func scanKallsyms(path string, capacity int) (symbols, error) {
 	return syms, scanner.Err()
 }
 
-type elfSymbolSource struct {
+type elfSymbolTable struct {
 	name string
 	typ  elf.SectionType
 }
@@ -296,7 +296,7 @@ func newELFSymbolParseState(limits ELFSymbolLimits) *elfSymbolParseState {
 	}
 }
 
-func elfSymbolSourceSections(f *elf.File, source elfSymbolSource) (*elf.Section, *elf.Section, error) {
+func elfSymbolTableSections(f *elf.File, source elfSymbolTable) (*elf.Section, *elf.Section, error) {
 	section := f.SectionByType(source.typ)
 	if section == nil {
 		return nil, nil, elf.ErrNoSymbols
@@ -311,8 +311,8 @@ func elfSymbolSourceSections(f *elf.File, source elfSymbolSource) (*elf.Section,
 	return section, stringsSection, nil
 }
 
-func (state *elfSymbolParseState) parseSource(f *elf.File, source elfSymbolSource, pcs ...uint64) (symbols, error) {
-	section, stringsSection, err := elfSymbolSourceSections(f, source)
+func (state *elfSymbolParseState) parseSource(f *elf.File, source elfSymbolTable, pcs ...uint64) (symbols, error) {
+	section, stringsSection, err := elfSymbolTableSections(f, source)
 	if err != nil {
 		return nil, err
 	}
@@ -377,11 +377,11 @@ func (state *elfSymbolParseState) parseSource(f *elf.File, source elfSymbolSourc
 	}
 
 	candidates := selectELFSymbolCandidates(index, pcs)
-	result, nameBytes, localNames, err := materializeELFSymbolCandidates(stringsSection, candidates, pcs, state)
+	result, nameBytes, pendingNamesByOffset, err := materializeELFSymbolCandidates(stringsSection, candidates, pcs, state)
 	if err != nil {
 		return nil, err
 	}
-	sharedNames := state.names[stringsID]
+	cachedNames := state.names[stringsID]
 
 	state.metadataBytes += metadataBytes
 	if !symbolsAlreadyCounted {
@@ -392,12 +392,12 @@ func (state *elfSymbolParseState) parseSource(f *elf.File, source elfSymbolSourc
 	if len(pcs) == 0 {
 		state.metadataSections[stringsID] = struct{}{}
 	}
-	if sharedNames == nil {
-		sharedNames = make(map[uint32]string, len(localNames))
-		state.names[stringsID] = sharedNames
+	if cachedNames == nil {
+		cachedNames = make(map[uint32]string, len(pendingNamesByOffset))
+		state.names[stringsID] = cachedNames
 	}
-	for offset, name := range localNames {
-		sharedNames[offset] = name
+	for offset, name := range pendingNamesByOffset {
+		cachedNames[offset] = name
 	}
 	return result, nil
 }
@@ -469,8 +469,8 @@ func selectELFSymbolCandidates(index []elfSymbolCandidate, pcs []uint64) map[uin
 }
 
 func materializeELFSymbolCandidates(stringsSection *elf.Section, candidates map[uint64]elfSymbolCandidate, pcs []uint64, state *elfSymbolParseState) (symbols, uint64, map[uint32]string, error) {
-	sharedNames := state.names[sectionKey(stringsSection)]
-	localNames := make(map[uint32]string)
+	cachedNames := state.names[sectionKey(stringsSection)]
+	pendingNamesByOffset := make(map[uint32]string)
 	var nameBytes uint64
 	result := make(symbols, 0, len(candidates))
 	allSymbols := len(pcs) == 0
@@ -478,30 +478,30 @@ func materializeELFSymbolCandidates(stringsSection *elf.Section, candidates map[
 		if !allSymbols && !symbolCovers(matched.value, matched.size, pc) {
 			continue
 		}
-		name, ok := sharedNames[matched.nameOffset]
+		name, ok := cachedNames[matched.nameOffset]
 		if !ok {
-			name, ok = localNames[matched.nameOffset]
+			name, ok = pendingNamesByOffset[matched.nameOffset]
 		}
 		if !ok {
 			if uint64(matched.nameOffset) >= stringsSection.Size {
 				return nil, 0, nil, fmt.Errorf("symbol name offset %d exceeds string table size %d", matched.nameOffset, stringsSection.Size)
 			}
-			remainingNames := state.limits.MaxNameBytes - state.nameBytes - nameBytes
+			remainingNameBytes := state.limits.MaxNameBytes - state.nameBytes - nameBytes
 			maxNameLength := state.limits.MaxNameLength
-			if maxNameLength == 0 || maxNameLength > remainingNames {
-				maxNameLength = remainingNames
+			if maxNameLength == 0 || maxNameLength > remainingNameBytes {
+				maxNameLength = remainingNameBytes
 			}
 			var err error
 			name, err = readELFSymbolName(stringsSection, matched.nameOffset, maxNameLength)
 			if err != nil {
 				return nil, 0, nil, err
 			}
-			localNames[matched.nameOffset] = name
+			pendingNamesByOffset[matched.nameOffset] = name
 			nameBytes += uint64(len(name))
 		}
 		result = append(result, &symbol{Addr: matched.value, Size: matched.size, Name: name})
 	}
-	return result, nameBytes, localNames, nil
+	return result, nameBytes, pendingNamesByOffset, nil
 }
 
 func readELFSymbolName(section *elf.Section, offset uint32, limit uint64) (string, error) {
@@ -525,7 +525,7 @@ func readELFSymbolName(section *elf.Section, offset uint32, limit uint64) (strin
 	return "", fmt.Errorf("symbol name at offset %d is not NUL-terminated: %w", offset, err)
 }
 
-func elfSymbolsFromSources(f *elf.File, sources []elfSymbolSource, limits ELFSymbolLimits) (symbols, error) {
+func elfSymbolsFromSources(f *elf.File, sources []elfSymbolTable, limits ELFSymbolLimits) (symbols, error) {
 	syms := symbols{}
 	state := newELFSymbolParseState(limits)
 	var limitErrors []error
@@ -546,11 +546,13 @@ func elfSymbolsFromSources(f *elf.File, sources []elfSymbolSource, limits ELFSym
 	return syms, errors.Join(append(limitErrors, parseErrors...)...)
 }
 
-// elfSymbols extracts all STT_FUNC entries from .dynsym and .symtab. Version
+// elfSymbols is retained for synthetic and full-table tests; production
+// resolution uses elfSymbolsForPCs to materialize only requested names.
+// It extracts all STT_FUNC entries from .dynsym and .symtab. Version
 // metadata is intentionally not parsed because the resolver only consumes the
 // symbol name, address, and size.
 func elfSymbols(f *elf.File, limits ELFSymbolLimits) (symbols, error) {
-	return elfSymbolsFromSources(f, []elfSymbolSource{
+	return elfSymbolsFromSources(f, []elfSymbolTable{
 		{name: "dynsym", typ: elf.SHT_DYNSYM},
 		{name: "symtab", typ: elf.SHT_SYMTAB},
 	}, limits)
@@ -570,7 +572,7 @@ func elfSymbolsForPCsWithState(f *elf.File, pcs []uint64, state *elfSymbolParseS
 	var limitErrors []error
 	var parseErrors []error
 	remainingPCs := pcs
-	for _, source := range []elfSymbolSource{{name: "symtab", typ: elf.SHT_SYMTAB}, {name: "dynsym", typ: elf.SHT_DYNSYM}} {
+	for _, source := range []elfSymbolTable{{name: "symtab", typ: elf.SHT_SYMTAB}, {name: "dynsym", typ: elf.SHT_DYNSYM}} {
 		if len(pcs) > 0 && len(remainingPCs) == 0 {
 			break
 		}
