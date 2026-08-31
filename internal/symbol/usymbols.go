@@ -209,6 +209,17 @@ type elfGroupKey struct {
 	loadBias uint64 //nolint:unused // used implicitly via map key equality; never accessed by name
 }
 
+func addPendingELFPC(groups map[elfGroupKey]*pendingELFPCs, key elfGroupKey, path string, syms symbols, state *elfSymbolParseState, resolved map[uint64]string, pc uint64, index int, failure string) {
+	group := groups[key]
+	if group == nil {
+		group = &pendingELFPCs{path: path, syms: syms, state: state, resolved: resolved}
+		groups[key] = group
+	}
+	group.pcs = append(group.pcs, pc)
+	group.indices = append(group.indices, index)
+	group.failures = append(group.failures, failure)
+}
+
 func (r *UsymResolver) resolveAddrs(pid uint32, addrs []uint64) []string {
 	result := slices.Repeat([]string{failFrame("elf-load-fail", "")}, len(addrs))
 	cache, err := r.loadElfCaches(pid)
@@ -232,14 +243,7 @@ func (r *UsymResolver) resolveAddrs(pid uint32, addrs []uint64) []string {
 						cache.resolved = make(map[uint64]string)
 					}
 					groupKey := elfGroupKey{path: path, module: module, loadBias: baseAddr}
-					group := groups[groupKey]
-					if group == nil {
-						group = &pendingELFPCs{path: path, syms: cache.syms, state: cache.state, resolved: cache.resolved}
-						groups[groupKey] = group
-					}
-					group.pcs = append(group.pcs, addr-baseAddr)
-					group.indices = append(group.indices, index)
-					group.failures = append(group.failures, failFrame("elf-no-sym", ""))
+					addPendingELFPC(groups, groupKey, path, cache.syms, cache.state, cache.resolved, addr-baseAddr, index, failFrame("elf-no-sym", ""))
 					continue
 				}
 			}
@@ -249,14 +253,7 @@ func (r *UsymResolver) resolveAddrs(pid uint32, addrs []uint64) []string {
 				cache.resolved = make(map[uint64]string)
 			}
 			groupKey := elfGroupKey{path: path, module: module}
-			group := groups[groupKey]
-			if group == nil {
-				group = &pendingELFPCs{path: path, syms: cache.syms, state: cache.state, resolved: cache.resolved}
-				groups[groupKey] = group
-			}
-			group.pcs = append(group.pcs, addr)
-			group.indices = append(group.indices, index)
-			group.failures = append(group.failures, failFrame("elf-no-sym", ""))
+			addPendingELFPC(groups, groupKey, path, cache.syms, cache.state, cache.resolved, addr, index, failFrame("elf-no-sym", ""))
 			continue
 		}
 
@@ -287,14 +284,7 @@ func (r *UsymResolver) resolveAddrs(pid uint32, addrs []uint64) []string {
 			libCache.resolved = make(map[uint64]string)
 		}
 		groupKey := elfGroupKey{path: libPath, module: m.Pathname, loadBias: baseAddr}
-		group := groups[groupKey]
-		if group == nil {
-			group = &pendingELFPCs{path: libPath, syms: libCache.syms, state: libCache.state, resolved: libCache.resolved}
-			groups[groupKey] = group
-		}
-		group.pcs = append(group.pcs, addr-baseAddr)
-		group.indices = append(group.indices, index)
-		group.failures = append(group.failures, failFrame("lib-no-sym", m.Pathname))
+		addPendingELFPC(groups, groupKey, libPath, libCache.syms, libCache.state, libCache.resolved, addr-baseAddr, index, failFrame("lib-no-sym", m.Pathname))
 	}
 
 	for _, group := range groups {

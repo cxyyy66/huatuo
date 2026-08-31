@@ -460,9 +460,9 @@ func selectELFSymbolCandidates(index []elfSymbolCandidate, pcs []uint64) map[uin
 		return selected
 	}
 	for _, pc := range pcs {
-		candidateIndex := searchFloorIndex(len(index), func(i int) bool { return index[i].value > pc })
-		if candidateIndex >= 0 {
-			selected[pc] = index[candidateIndex]
+		symbolIndex := searchFloorIndex(len(index), func(i int) bool { return index[i].value > pc })
+		if symbolIndex >= 0 {
+			selected[pc] = index[symbolIndex]
 		}
 	}
 	return selected
@@ -473,9 +473,8 @@ func materializeELFSymbolCandidates(stringsSection *elf.Section, candidates map[
 	pendingNamesByOffset := make(map[uint32]string)
 	var nameBytes uint64
 	result := make(symbols, 0, len(candidates))
-	allSymbols := len(pcs) == 0
 	for pc, matched := range candidates {
-		if !allSymbols && !symbolCovers(matched.value, matched.size, pc) {
+		if len(pcs) > 0 && !symbolCovers(matched.value, matched.size, pc) {
 			continue
 		}
 		name, ok := cachedNames[matched.nameOffset]
