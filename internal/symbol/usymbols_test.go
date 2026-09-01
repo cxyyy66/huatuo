@@ -161,6 +161,9 @@ func TestResolveELFPCsDoesNotLogLimitsAtInfo(t *testing.T) {
 	if strings.Contains(output.String(), "limits reached") {
 		t.Fatalf("repeated ELF limit logged above debug: %s", output.String())
 	}
+	if strings.Contains(output.String(), "parse ELF PCs") {
+		t.Fatalf("ELF parse diagnostics must remain below info level: %s", output.String())
+	}
 }
 
 func TestUsymResolverDisplayName(t *testing.T) {

@@ -373,13 +373,17 @@ func (state *elfSymbolParseState) parseSource(f *elf.File, source elfSymbolTable
 			return nil, fmt.Errorf("ELF section data size differs from its declared size")
 		}
 		index = buildELFSymbolIndex(f, data, symbolSize)
-		state.indexes[sectionID] = index
 	}
 
 	candidates := selectELFSymbolCandidates(index, pcs)
 	result, nameBytes, pendingNamesByOffset, err := materializeELFSymbolCandidates(stringsSection, candidates, pcs, state)
 	if err != nil {
 		return nil, err
+	}
+	// Publish the index only after names and resource accounting succeed. A
+	// failed materialization must not leave uncharged metadata in the cache.
+	if !indexed {
+		state.indexes[sectionID] = index
 	}
 	cachedNames := state.names[stringsID]
 
@@ -486,6 +490,9 @@ func materializeELFSymbolCandidates(stringsSection *elf.Section, candidates map[
 				return nil, 0, nil, fmt.Errorf("symbol name offset %d exceeds string table size %d", matched.nameOffset, stringsSection.Size)
 			}
 			remainingNameBytes := state.limits.MaxNameBytes - state.nameBytes - nameBytes
+			if isCompressedELFSection(stringsSection) && uint64(matched.nameOffset) > remainingNameBytes {
+				return nil, 0, nil, fmt.Errorf("%w: compressed string table seek to offset %d exceeds the %d-byte work limit", errELFSymbolLimit, matched.nameOffset, remainingNameBytes)
+			}
 			maxNameLength := state.limits.MaxNameLength
 			if maxNameLength == 0 || maxNameLength > remainingNameBytes {
 				maxNameLength = remainingNameBytes
@@ -501,6 +508,10 @@ func materializeELFSymbolCandidates(stringsSection *elf.Section, candidates map[
 		result = append(result, &symbol{Addr: matched.value, Size: matched.size, Name: name})
 	}
 	return result, nameBytes, pendingNamesByOffset, nil
+}
+
+func isCompressedELFSection(section *elf.Section) bool {
+	return section.Flags&elf.SHF_COMPRESSED != 0 || strings.HasPrefix(section.Name, ".zdebug")
 }
 
 func readELFSymbolName(section *elf.Section, offset uint32, limit uint64) (string, error) {

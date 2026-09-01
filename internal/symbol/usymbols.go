@@ -49,6 +49,7 @@ type cacheKey struct {
 }
 
 // UsymResolver resolves user-space stack addresses to symbol names across pids.
+// It is not safe for concurrent use.
 type UsymResolver struct {
 	exeCache  map[cacheKey]*elfCache // inode+xfs → elfcache
 	exeKeys   map[uint32]cacheKey    // pid → cachekey
