@@ -739,6 +739,21 @@ func TestElfSymbolsBoundsExpandedNamesInRealELF(t *testing.T) {
 	}
 }
 
+func TestELFSymbolParseDoesNotRetainUnchargedIndexOnNameFailure(t *testing.T) {
+	f := newELF64SymbolFixture(t, elf64SymbolTableFixture{
+		typ:         elf.SHT_SYMTAB,
+		stringTable: []byte{0, 0},
+		nameOffsets: []uint32{2},
+	})
+	state := newELFSymbolParseState(DefaultELFSymbolLimits())
+	if _, err := state.parseSource(f, elfSymbolTable{name: "symtab", typ: elf.SHT_SYMTAB}, 0x1000); err == nil {
+		t.Fatal("parseSource: expected invalid symbol-name offset error")
+	}
+	if len(state.indexes) != 0 {
+		t.Fatalf("parseSource retained %d index entries after failed materialization", len(state.indexes))
+	}
+}
+
 func TestElfSymbolsRejectsDistinctExpandedNamesInRealELF(t *testing.T) {
 	const nameSize = 32 << 10
 	firstName := strings.Repeat("a", nameSize)
