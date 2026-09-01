@@ -582,6 +582,7 @@ func elfSymbolsForPCsWithState(f *elf.File, pcs []uint64, state *elfSymbolParseS
 	var limitErrors []error
 	var parseErrors []error
 	remainingPCs := pcs
+	resolvedByPreferred := make(map[uint64]struct{}, len(pcs))
 	for _, source := range []elfSymbolTable{{name: "symtab", typ: elf.SHT_SYMTAB}, {name: "dynsym", typ: elf.SHT_DYNSYM}} {
 		if len(pcs) > 0 && len(remainingPCs) == 0 {
 			break
@@ -597,6 +598,22 @@ func elfSymbolsForPCsWithState(f *elf.File, pcs []uint64, state *elfSymbolParseS
 				}
 			}
 			continue
+		}
+		if source.typ == elf.SHT_DYNSYM && len(resolvedByPreferred) > 0 {
+			filtered := sourceSymbols[:0]
+			for _, sym := range sourceSymbols {
+				shadowed := false
+				for pc := range resolvedByPreferred {
+					if symbolCovers(sym.Addr, sym.Size, pc) {
+						shadowed = true
+						break
+					}
+				}
+				if !shadowed {
+					filtered = append(filtered, sym)
+				}
+			}
+			sourceSymbols = filtered
 		}
 		syms = append(syms, sourceSymbols...)
 		if len(remainingPCs) > 0 {
@@ -617,6 +634,11 @@ func elfSymbolsForPCsWithState(f *elf.File, pcs []uint64, state *elfSymbolParseS
 				}
 			}
 			remainingPCs = next
+			if source.typ == elf.SHT_SYMTAB {
+				for pc := range resolved {
+					resolvedByPreferred[pc] = struct{}{}
+				}
+			}
 		}
 	}
 	syms.sort()
